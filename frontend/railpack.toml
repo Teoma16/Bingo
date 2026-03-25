@@ -1,0 +1,6 @@
+[build]
+buildCommand = "npm install && npm run build"
+outputDirectory = "build"
+
+[deploy]
+startCommand = "npx serve -s build -l 3000"
