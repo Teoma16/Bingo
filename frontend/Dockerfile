@@ -1,4 +1,4 @@
-FROM node:18-alpine as builder
+FROM node:18-alpine
 
 WORKDIR /app
 
@@ -12,17 +12,11 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Build the app
-RUN npm run build
+RUN npx react-scripts build
 
-# Production stage
-FROM nginx:alpine
+# Install serve
+RUN npm install -g serve
 
-# Copy built files to nginx
-COPY --from=builder /app/build /usr/share/nginx/html
+EXPOSE 3000
 
-# Copy custom nginx config (create this file if needed)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["serve", "-s", "build", "-l", "3000"]
