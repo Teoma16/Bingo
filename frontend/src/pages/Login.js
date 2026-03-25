@@ -46,7 +46,34 @@ function Login() {
     
     setLoading(false);
   };
-
+// In your login page or main component
+useEffect(() => {
+  const autoLoginFromTelegram = async () => {
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe?.user;
+      
+      if (user) {
+        try {
+          const response = await axios.post(`${API_URL}/auth/telegram-auth`, {
+            userId: user.id,
+            username: user.username
+          });
+          
+          if (response.data.success) {
+            localStorage.setItem('token', response.data.token);
+            // Navigate to dashboard
+            navigate('/');
+          }
+        } catch (error) {
+          console.error('Auto-login failed:', error);
+        }
+      }
+    }
+  };
+  
+  autoLoginFromTelegram();
+}, []);
   return (
     <div className="login-container">
       <div className="login-card glass-card">

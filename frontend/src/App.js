@@ -7,10 +7,40 @@ import Dashboard from './pages/Dashboard';
 import GameRoom from './pages/GameRoom';
 import AdminPanel from './pages/AdminPanel';
 import PrivateRoute from './components/PrivateRoute';
+import { useEffect } from 'react';
 import './styles/casino-theme.css';  // Add this import
 import './App.css';
 
 function App() {
+	 useEffect(() => {
+    // Detect if running inside Telegram
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      
+      // Expand to full screen
+      tg.expand();
+      
+      // Set theme colors to match your casino theme
+      tg.setHeaderColor('#1a1a2e');
+      tg.setBackgroundColor('#0a0a0f');
+      
+      // Get user data if available
+      const initData = tg.initDataUnsafe;
+      if (initData && initData.user) {
+        console.log('Telegram user:', initData.user);
+        // You can auto-login using Telegram user ID
+        // Send this to your backend for authentication
+      }
+      
+      // Ready button
+      tg.ready();
+      
+      // Handle closing
+      tg.onEvent('viewportChanged', () => {
+        console.log('Viewport changed');
+      });
+    }
+  }, []);
   return (
     <AuthProvider>
       <SocketProvider>

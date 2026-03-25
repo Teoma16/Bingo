@@ -124,7 +124,29 @@ const didUserWin = (game, userId) => {
 };
 
 const WELCOME_BONUS = 500;
-
+// Add the Web App button to your menu
+const sendWebAppMenu = async (chatId, user) => {
+  const webAppUrl = `${process.env.FRONTEND_URL || 'https://bingo-production-2ec6.up.railway.app/'}/?startapp=${user?.id}`;
+  
+  const options = {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎮 OPEN BINGO GAME", web_app: { url: webAppUrl } }],
+        [
+          { text: "💰 Balance", callback_data: "menu_balance" },
+          { text: "💸 Withdraw", callback_data: "menu_withdraw" }
+        ],
+        [
+          { text: "🎮 History", callback_data: "menu_history" },
+          { text: "❓ Help", callback_data: "menu_help" }
+        ]
+      ]
+    },
+    parse_mode: 'Markdown'
+  };
+  
+  await bot.sendMessage(chatId, "🎰 *BINGO LAST* 🎰\n\nClick the button below to start playing!", options);
+};
 // Send Main Menu with Inline Buttons
 const sendMainMenu = async (chatId, user) => {
   const menuMessage = user ? `
@@ -189,42 +211,37 @@ if (bot) {
 
   // ============= START COMMAND =============
   bot.onText(/\/start/, async (msg) => {
-    const chatId = msg.chat.id;
-    const telegramId = msg.from.id;
-    const username = msg.from.username || '';
-    
-    console.log(`/start from ${username} (${telegramId})`);
-    
-    const user = await getUserByTelegramId(telegramId);
-    
-    if (user) {
-      await sendMainMenu(chatId, user);
-      await sendMenuButton(chatId);
-    } else {
-      const welcomeMessage = `
+  const chatId = msg.chat.id;
+  const telegramId = msg.from.id;
+  const username = msg.from.username || '';
+  
+  const user = await getUserByTelegramId(telegramId);
+  
+  if (user) {
+    // Send Web App menu for registered users
+    await sendWebAppMenu(chatId, user);
+  } else {
+    // Registration flow for new users
+    const welcomeMessage = `
 🎰 *Welcome to BINGO LAST!* 🎰
 
 🎁 *New users get ${WELCOME_BONUS} Birr FREE!*
 
-Click the button below to share your phone number and register:
-      `;
-      
-      const options = {
-        reply_markup: {
-          keyboard: [
-            [{ text: "📱 Register Now", request_contact: true }],
-            [{ text: "❌ Cancel" }]
-          ],
-          resize_keyboard: true,
-          one_time_keyboard: true
-        },
-        parse_mode: 'Markdown'
-      };
-      
-      registrationSteps.set(chatId, { step: 'phone', telegramId, username });
-      await bot.sendMessage(chatId, welcomeMessage, options);
-    }
-  });
+Click the button below to register:
+    `;
+    
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "📱 Register Now", callback_data: "start_registration" }]
+        ]
+      },
+      parse_mode: 'Markdown'
+    };
+    
+    await bot.sendMessage(chatId, welcomeMessage, options);
+  }
+});
 
   // ============= MENU BUTTON HANDLER =============
   bot.onText(/📋 Menu/, async (msg) => {

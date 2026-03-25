@@ -92,5 +92,40 @@ router.get('/me', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
+// Telegram Web App authentication
+router.post('/telegram-auth', async (req, res) => {
+  const { initData, userId } = req.body;
+  
+  try {
+    // Verify the hash (for production, verify the initData signature)
+    // For now, find or create user by telegram ID
+    let user = await pool.query(
+      'SELECT * FROM users WHERE telegram_id = $1',
+      [userId]
+    );
+    
+    if (user.rows.length === 0) {
+      // Create user if doesn't exist
+      const newUser = await pool.query(
+        `INSERT INTO users (telegram_id, username, wallet_balance) 
+         VALUES ($1, $2, $3) 
+         RETURNING *`,
+        [userId, `tg_user_${userId}`, 500]
+      );
+      user = newUser;
+    }
+    
+    // Generate JWT token
+    const token = generateToken(user.rows[0].id, userId);
+    
+    res.json({
+      success: true,
+      token,
+      user: user.rows[0]
+    });
+  } catch (error) {
+    console.error('Telegram auth error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
 module.exports = router;
