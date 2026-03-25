@@ -116,9 +116,9 @@ function WithdrawalModal({ isOpen, onClose, balance, onSuccess }) {
           </button>
         </form>
 
-        <div className="withdrawal-note">
+        {/*<div className="withdrawal-note">
           <p>⚠️ Withdrawal requests are processed by admin. You'll receive the money via Telebirr to your registered phone number.</p>
-        </div>
+        </div>*/}
       </div>
     </div>
   );

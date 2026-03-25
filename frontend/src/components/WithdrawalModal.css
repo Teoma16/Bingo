@@ -1,6 +1,6 @@
 .withdrawal-modal-overlay {
   position: fixed;
-  top: 0;
+  top: 20px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -10,11 +10,6 @@
   align-items: center;
   z-index: 2000;
   animation: fadeIn 0.3s;
-    /* Push modal slightly down */
-  align-items: flex-start;
-
-  /* Space from top & bottom */
-  padding: 60px 15px 30px;
 }
 
 .withdrawal-modal {
@@ -26,8 +21,6 @@
   width: 90%;
   position: relative;
   animation: slideUp 0.3s;
-   max-height: calc(100vh - 100px);
-  overflow-y: auto;
 }
 
 .modal-close {
