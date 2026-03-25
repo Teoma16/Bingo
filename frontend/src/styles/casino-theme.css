@@ -1,0 +1,85 @@
+/* Casino Theme Variables */
+:root {
+  --casino-gold: #ffd700;
+  --casino-gold-dark: #b8860b;
+  --casino-gold-glow: rgba(255, 215, 0, 0.3);
+  --casino-red: #dc2626;
+  --casino-red-dark: #991b1b;
+  --casino-green: #10b981;
+  --casino-dark-bg: #0a0a0f;
+  --casino-card-bg: rgba(15, 15, 25, 0.9);
+  --casino-border: rgba(255, 215, 0, 0.2);
+  --casino-text: #ffffff;
+  --casino-text-dim: #a0a0a0;
+}
+
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  color: var(--casino-text);
+  min-height: 100vh;
+}
+
+/* Casino Card */
+.casino-card {
+  background: var(--casino-card-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--casino-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Casino Button */
+.btn-casino {
+  background: linear-gradient(135deg, var(--casino-gold), var(--casino-gold-dark));
+  border: none;
+  padding: 10px 24px;
+  border-radius: 40px;
+  color: #1a1a2e;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.btn-casino:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px var(--casino-gold-glow);
+}
+
+.btn-casino-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--casino-border);
+  color: var(--casino-text);
+}
+
+.btn-casino-secondary:hover {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: var(--casino-gold);
+}
+
+/* Casino Glow Text */
+.casino-glow {
+  background: linear-gradient(135deg, var(--casino-gold), #ffb347);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animations */
+@keyframes casino-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes casino-shine {
+  0% { background-position: -100%; }
+  100% { background-position: 200%; }
+}

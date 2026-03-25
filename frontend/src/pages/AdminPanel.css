@@ -1,0 +1,289 @@
+.admin-panel {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 20px;
+}
+
+.admin-header {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.admin-header h1 {
+  font-size: 28px;
+  color: #ffd700;
+}
+
+.admin-user {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.admin-tabs button {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 16px;
+}
+
+.admin-tabs button:hover {
+  background: rgba(255, 215, 0, 0.3);
+}
+
+.admin-tabs button.active {
+  background: linear-gradient(135deg, #ffd700, #ffb347);
+  color: #1a1a2e;
+  font-weight: bold;
+}
+
+.admin-content {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  padding: 20px;
+}
+
+.admin-content h2 {
+  margin-bottom: 20px;
+  color: #ffd700;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.room-stat-card {
+  padding: 20px;
+}
+
+.room-stat-card h3 {
+  color: #ffd700;
+  margin-bottom: 15px;
+}
+
+.room-stat-details p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.users-table-container,
+.deposits-table-container {
+  overflow-x: auto;
+}
+
+.users-table,
+.deposits-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td,
+.deposits-table th,
+.deposits-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.users-table th,
+.deposits-table th {
+  background: rgba(255, 215, 0, 0.1);
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.users-table td,
+.deposits-table td {
+  color: #fff;
+}
+
+.balance,
+.amount {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.transaction-text {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-view,
+.btn-approve {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.btn-approve {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.btn-view:hover,
+.btn-approve:hover {
+  transform: scale(1.05);
+}
+
+.financial-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.financial-card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  gap: 15px;
+}
+
+.financial-icon {
+  font-size: 40px;
+}
+
+.financial-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.financial-info span {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.financial-info strong {
+  font-size: 24px;
+  margin-top: 5px;
+  color: #ffd700;
+}
+
+.bonus-settings {
+  padding: 30px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.bonus-settings h3 {
+  margin: 20px 0 15px;
+  color: #ffd700;
+}
+
+.bonus-settings h3:first-child {
+  margin-top: 0;
+}
+
+.setting-group {
+  margin-bottom: 15px;
+}
+
+.setting-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.setting-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.setting-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.user-details {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.user-details p {
+  margin: 8px 0;
+}
+
+.admin-actions {
+  margin-top: 20px;
+}
+
+.admin-actions h3 {
+  margin-bottom: 15px;
+  color: #ffd700;
+}
+
+.action-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-group input,
+.action-group select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.admin-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+@media (max-width: 768px) {
+  .admin-tabs {
+    justify-content: center;
+  }
+  
+  .admin-tabs button {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  .financial-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-group {
+    flex-direction: column;
+  }
+}

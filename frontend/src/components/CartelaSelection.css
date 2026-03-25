@@ -1,0 +1,263 @@
+.cartela-selection-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.cartela-selection-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 30px;
+  position: relative;
+}
+
+.cartela-selection-content h2 {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #ffd700;
+}
+
+.room-info {
+  text-align: center;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.selection-info {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 10px;
+}
+
+.selected-numbers {
+  display: block;
+  font-size: 14px;
+  margin-top: 5px;
+  color: #ffd700;
+}
+
+.lucky-numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 10px;
+  margin: 20px 0;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.lucky-number-btn {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lucky-number-btn:hover {
+  background: rgba(255, 215, 0, 0.3);
+  transform: scale(1.05);
+}
+
+.lucky-number-btn.selected {
+  background: linear-gradient(135deg, #ffd700, #ffb347);
+  color: #1a1a2e;
+  border-color: #ffd700;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Cartela Preview Modal */
+.cartela-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2100;
+  animation: fadeIn 0.2s;
+}
+
+.cartela-preview {
+  max-width: 500px;
+  width: 90%;
+  padding: 30px;
+  position: relative;
+  text-align: center;
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.cartela-preview h3 {
+  color: #ffd700;
+  margin-bottom: 20px;
+}
+
+.bingo-card-preview {
+  margin: 20px 0;
+}
+
+.bingo-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  text-align: center;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 10px;
+}
+
+.bingo-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bingo-cell-preview {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+  text-align: center;
+  padding: 8px;
+}
+
+.bingo-cell-preview.free {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.btn-select {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-select.selected {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.btn-select:hover {
+  transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .lucky-numbers-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+  }
+  
+  .lucky-number-btn {
+    font-size: 10px;
+  }
+  
+  .bingo-row {
+    gap: 4px;
+  }
+  
+  .bingo-cell-preview {
+    font-size: 0.75rem;
+    padding: 4px;
+  }
+}
+.lucky-number-btn.taken {
+  background: rgba(220, 38, 38, 0.5);
+  cursor: not-allowed;
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.lucky-number-btn.taken:hover {
+  transform: none;
+  background: rgba(220, 38, 38, 0.5);
+}
+
+.taken-info {
+  font-size: 12px;
+  color: #ff6b6b;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.live-status {
+  font-size: 12px;
+  color: #10b981;
+  text-align: center;
+  margin-bottom: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

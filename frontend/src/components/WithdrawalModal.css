@@ -1,0 +1,181 @@
+.withdrawal-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s;
+}
+
+.withdrawal-modal {
+  background: linear-gradient(135deg, #1a1a2e, #0f0f1a);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 450px;
+  width: 90%;
+  position: relative;
+  animation: slideUp 0.3s;
+}
+
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: #ffd700;
+}
+
+.modal-icon {
+  text-align: center;
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.withdrawal-modal h2 {
+  text-align: center;
+  color: #ffd700;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.balance-info {
+  background: rgba(255, 215, 0, 0.1);
+  padding: 12px 20px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+
+.balance-info strong {
+  color: #ffd700;
+  font-size: 1.2rem;
+}
+
+.withdrawal-rules {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 0.8rem;
+}
+
+.withdrawal-rules p {
+  color: #ffd700;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.withdrawal-rules ul {
+  margin-left: 20px;
+  color: #ccc;
+}
+
+.withdrawal-rules li {
+  margin: 5px 0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #ffd700;
+}
+
+.btn-withdraw {
+  width: 100%;
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  border: none;
+  padding: 12px;
+  border-radius: 30px;
+  color: #1a1a2e;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-withdraw:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+}
+
+.btn-withdraw:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid #dc2626;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #ff6b6b;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.success-message {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #10b981;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.withdrawal-note {
+  margin-top: 20px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  font-size: 0.7rem;
+  color: #888;
+  text-align: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
