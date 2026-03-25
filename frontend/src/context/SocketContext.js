@@ -15,7 +15,6 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!token || !user) {
       if (socketRef.current) {
-        console.log('Disconnecting socket - no user');
         socketRef.current.disconnect();
         setSocket(null);
         setIsConnected(false);
@@ -23,8 +22,8 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Create socket connection with proper configuration
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+    // Use the same origin as the page (Railway URL)
+  const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
     console.log('Connecting to socket server:', socketUrl);
     
     const newSocket = io(socketUrl, {
@@ -42,11 +41,10 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('connect', () => {
       console.log('✅ Socket connected successfully!', newSocket.id);
       setIsConnected(true);
-      // Authenticate with token
       newSocket.emit('authenticate', token);
     });
 
-    newSocket.on('authenticated', (data) => {
+    newSocket.on('authenticated', () => {
       console.log('✅ Socket authenticated successfully');
     });
 
@@ -58,10 +56,6 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
       setIsConnected(false);
-    });
-
-    newSocket.on('error', (error) => {
-      console.error('Socket error:', error);
     });
 
     return () => {
