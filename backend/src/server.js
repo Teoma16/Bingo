@@ -3,7 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
-
+const path = require('path');
 // Load environment variables
 dotenv.config();
 
@@ -58,6 +58,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/telegram', telegramRoutes);
 
+app.use(express.static(path.join(__dirname, '../build')));
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
@@ -68,7 +69,9 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
-
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../build', 'index.html'));
+});
 // Socket.io connection handling with error logging
 io.on('connection', (socket) => {
   console.log('✅ New client connected:', socket.id);
