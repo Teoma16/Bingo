@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 
 // Your Railway PostgreSQL connection string
-const connectionString = 'postgresql://postgres:NkScMnOMMazhvNShaNKHKOeUfayQdwPJ@crossover.proxy.rlwy.net:31731/railway';
+const connectionString = 'postgresql://postgres:jtcfLAQHYfToFLwSUuhZMhsILuAKbCwI@shuttle.proxy.rlwy.net:44368/railway';
 
 async function migrate() {
   console.log('🚀 Starting database migration...\n');
