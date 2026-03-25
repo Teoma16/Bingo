@@ -1,13 +1,10 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "config": {
-      "nodeVersion": "18"
-    }
+    "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
+    "watchPaths": ["frontend/**"]
   },
   "deploy": {
-    "numReplicas": 1,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "startCommand": "cd frontend && npx serve -s build -l 3000"
   }
 }
