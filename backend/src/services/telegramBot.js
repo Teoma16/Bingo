@@ -54,18 +54,17 @@ const getUserByTelegramId = async (telegramId) => {
 };
 
 const WELCOME_BONUS = 500;
+const WEB_APP_URL = 'https://bingo-production-2ec6.up.railway.app';
 
-// ============= SIMPLE MAIN MENU =============
+// ============= MAIN MENU (Always accessible) =============
 const sendMainMenu = async (chatId, user) => {
-  const webAppUrl = 'https://bingo-production-2ec6.up.railway.app';
-  
   let message = '';
   const buttons = [];
 
   if (user) {
-    message = `🎰 *BINGO LAST* 🎰\n\n👤 *${user.username || 'Player'}*\n💰 *Balance:* ${user.wallet_balance} Birr\n🏆 *Wins:* ${user.total_games_won}\n━━━━━━━━━━━━━━━━━━━━\n\n*What would you like to do?*`;
+    message = `🎰 *BINGO* 🎰\n\n👤 *${user.username || 'Player'}*\n💰 *Balance:* ${user.wallet_balance} Birr\n🏆 *Wins:* ${user.total_games_won}\n━━━━━━━━━━━━━━━━━━━━\n\n*Choose an option:*`;
     
-    buttons.push([{ text: "🎮 PLAY BINGO", web_app: { url: webAppUrl } }]);
+    buttons.push([{ text: "🎮 PLAY GAME", web_app: { url: WEB_APP_URL } }]);
     buttons.push([
       { text: "💰 Balance", callback_data: "menu_balance" },
       { text: "📜 History", callback_data: "menu_history" }
@@ -75,7 +74,7 @@ const sendMainMenu = async (chatId, user) => {
       { text: "❓ Help", callback_data: "menu_help" }
     ]);
   } else {
-    message = `🎰 *BINGO LAST* 🎰\n\n🎁 *New users get ${WELCOME_BONUS} Birr FREE!*\n\nClick below to register and start playing!`;
+    message = `🎰 *BINGO* 🎰\n\n🎁 *New users get ${WELCOME_BONUS} Birr FREE!*\n\nTap the button below to register and start playing!`;
     buttons.push([{ text: "📱 REGISTER", callback_data: "start_registration" }]);
     buttons.push([{ text: "❓ Help", callback_data: "menu_help" }]);
   }
@@ -91,133 +90,63 @@ const sendMainMenu = async (chatId, user) => {
   await bot.sendMessage(chatId, message, options);
 };
 
-// ============= COMMAND HANDLERS =============
+// ============= PERSISTENT MENU BUTTON (Always visible) =============
+const sendPersistentMenu = async (chatId) => {
+  const options = {
+    reply_markup: {
+      keyboard: [
+        [{ text: "📋 MENU" }]
+      ],
+      resize_keyboard: true,
+      persistent: true
+    }
+  };
+  await bot.sendMessage(chatId, "Tap MENU anytime to see options:", options);
+};
 
-// /start - Main entry point
-bot.onText(/\/start/, async (msg) => {
-  const chatId = msg.chat.id;
-  const telegramId = msg.from.id;
-  const user = await getUserByTelegramId(telegramId);
-  await sendMainMenu(chatId, user);
-});
-
-// Callback query handler
-bot.on('callback_query', async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const telegramId = callbackQuery.from.id;
-  const data = callbackQuery.data;
-  
-  const user = await getUserByTelegramId(telegramId);
-  await bot.answerCallbackQuery(callbackQuery.id);
-  
-  switch (data) {
-    case 'menu_balance':
-      if (user) {
-        await bot.sendMessage(chatId, `💰 *Your Balance*\n\n💵 *Current:* ${user.wallet_balance} Birr\n🏆 *Wins:* ${user.total_games_won}\n🎁 *Bonus:* ${user.total_bonus_won} Birr`, { parse_mode: 'Markdown' });
-        await sendMainMenu(chatId, user);
-      } else {
-        await sendMainMenu(chatId, null);
-      }
-      break;
-      
-    case 'menu_history':
-      if (user) {
-        const games = await pool.query(
-          `SELECT g.*, r.name as room_name
-           FROM games g
-           JOIN game_rooms r ON r.id = g.room_id
-           LEFT JOIN player_cartelas pc ON pc.game_id = g.id AND pc.user_id = $1
-           WHERE g.status = 'completed' AND pc.user_id IS NOT NULL
-           ORDER BY g.ended_at DESC
-           LIMIT 5`,
-          [user.id]
-        );
-        
-        if (games.rows.length === 0) {
-          await bot.sendMessage(chatId, '📭 No games played yet. Start playing!');
-        } else {
-          let history = `📜 *Recent Games*\n\n`;
-          for (const game of games.rows) {
-            const date = new Date(game.ended_at).toLocaleDateString();
-            const isWinner = game.winners && JSON.parse(game.winners).some(w => w.userId === user.id);
-            history += `• ${game.room_name} - ${date} - ${isWinner ? '🏆 WON' : '❌ LOST'}\n`;
-          }
-          await bot.sendMessage(chatId, history, { parse_mode: 'Markdown' });
-        }
-        await sendMainMenu(chatId, user);
-      } else {
-        await sendMainMenu(chatId, null);
-      }
-      break;
-      
-    case 'menu_withdraw':
-      if (user) {
-        if (user.wallet_balance < 10) {
-          await bot.sendMessage(chatId, '❌ Minimum withdrawal is 10 Birr.');
-          await sendMainMenu(chatId, user);
-          return;
-        }
-        const maxWithdraw = user.wallet_balance - 10;
-        withdrawalSteps.set(chatId, { userId: user.id, phone: user.phone });
-        await bot.sendMessage(chatId, `💸 *Withdrawal*\n\n💰 Balance: ${user.wallet_balance} Birr\n📱 Phone: ${user.phone || 'Not set'}\n\n*Max withdrawal:* ${maxWithdraw} Birr\n\nSend the amount you want to withdraw:`, { parse_mode: 'Markdown' });
-      } else {
-        await sendMainMenu(chatId, null);
-      }
-      break;
-      
-    case 'menu_help':
-      const helpMessage = `❓ *Help*\n\n*Commands:*\n/start - Main menu\n\n*How to Play:*\n1. Click PLAY BINGO\n2. Choose a room\n3. Select lucky numbers\n4. Numbers are called automatically\n5. Win when you get BINGO!\n\n*Support:* @BingoLastSupport`;
-      await bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
-      await sendMainMenu(chatId, user);
-      break;
-      
-    case 'start_registration':
-      if (user) {
-        await sendMainMenu(chatId, user);
-        return;
-      }
-      registrationSteps.set(chatId, { step: 'phone', telegramId: telegramId, username: callbackQuery.from.username || '' });
-      await bot.sendMessage(chatId, '📱 *Register*\n\nPlease share your phone number:', {
-        reply_markup: {
-          keyboard: [[{ text: "📱 Share Phone Number", request_contact: true }]],
-          resize_keyboard: true,
-          one_time_keyboard: true
-        },
-        parse_mode: 'Markdown'
-      });
-      break;
+// ============= WELCOME MESSAGE (When user first opens bot) =============
+const sendWelcome = async (chatId, user) => {
+  if (user) {
+    await sendMainMenu(chatId, user);
+  } else {
+    const welcomeMessage = `🎰 *Welcome to BINGO!* 🎰\n\n🎁 *New users get ${WELCOME_BONUS} Birr FREE!*\n\nTap the button below to get started.`;
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎮 START PLAYING", callback_data: "start_registration" }],
+          [{ text: "❓ Help", callback_data: "menu_help" }]
+        ]
+      },
+      parse_mode: 'Markdown'
+    };
+    await bot.sendMessage(chatId, welcomeMessage, options);
+    await sendPersistentMenu(chatId);
   }
-});
+};
 
-// Contact handler for registration
-bot.on('contact', async (msg) => {
-  const chatId = msg.chat.id;
-  if (!registrationSteps.has(chatId)) return;
-  
-  const stepData = registrationSteps.get(chatId);
-  if (stepData.step !== 'phone') return;
-  
-  const formattedPhone = formatPhoneNumber(msg.contact.phone_number);
-  if (!/^09[0-9]{8}$/.test(formattedPhone)) {
-    await bot.sendMessage(chatId, '❌ Invalid phone number. Use format: 0912345678');
-    registrationSteps.delete(chatId);
-    await sendMainMenu(chatId, null);
-    return;
-  }
-  
-  stepData.phone = formattedPhone;
-  stepData.step = 'password';
-  registrationSteps.set(chatId, stepData);
-  
-  await bot.sendMessage(chatId, '✅ Phone number received!\n\n🔐 Create a password (min 6 characters):', { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } });
-});
+// ============= BOT STARTS HERE =============
 
-// Password handler for registration
+// When user sends any message (including first interaction)
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
   
-  if (text && text.startsWith('/')) return;
+  // Handle the persistent MENU button
+  if (text === "📋 MENU") {
+    const user = await getUserByTelegramId(msg.from.id);
+    await sendMainMenu(chatId, user);
+    return;
+  }
+  
+  // Handle commands (backward compatibility)
+  if (text && text.startsWith('/')) {
+    if (text === '/start') {
+      const user = await getUserByTelegramId(msg.from.id);
+      await sendWelcome(chatId, user);
+    }
+    return;
+  }
+  
   if (msg.contact) return;
   
   // Handle registration password
@@ -247,14 +176,15 @@ bot.on('message', async (msg) => {
         );
         
         const newUser = await getUserByTelegramId(stepData.telegramId);
-        await bot.sendMessage(chatId, `✅ *Registration Successful!*\n\n📱 Phone: ${stepData.phone}\n🎁 Bonus: ${WELCOME_BONUS} Birr\n\n🌐 Login: https://bingo-production-2ec6.up.railway.app/login`, { parse_mode: 'Markdown' });
+        await bot.sendMessage(chatId, `✅ *Registration Successful!*\n\n📱 Phone: ${stepData.phone}\n🎁 Bonus: ${WELCOME_BONUS} Birr\n\n🌐 Login: ${WEB_APP_URL}/login`, { parse_mode: 'Markdown' });
         await sendMainMenu(chatId, newUser);
         registrationSteps.delete(chatId);
         
       } catch (error) {
         console.error('Registration error:', error);
-        await bot.sendMessage(chatId, '❌ Registration failed. Type /start to try again.');
+        await bot.sendMessage(chatId, '❌ Registration failed. Tap MENU to try again.');
         registrationSteps.delete(chatId);
+        await sendPersistentMenu(chatId);
       }
     }
     return;
@@ -295,6 +225,117 @@ bot.on('message', async (msg) => {
     withdrawalSteps.delete(chatId);
     await sendMainMenu(chatId, user);
   }
+});
+
+// Callback query handler (for button clicks)
+bot.on('callback_query', async (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const telegramId = callbackQuery.from.id;
+  const data = callbackQuery.data;
+  
+  const user = await getUserByTelegramId(telegramId);
+  await bot.answerCallbackQuery(callbackQuery.id);
+  
+  switch (data) {
+    case 'menu_balance':
+      if (user) {
+        await bot.sendMessage(chatId, `💰 *Your Balance*\n\n💵 *Current:* ${user.wallet_balance} Birr\n🏆 *Wins:* ${user.total_games_won}\n🎁 *Bonus:* ${user.total_bonus_won} Birr`, { parse_mode: 'Markdown' });
+        await sendMainMenu(chatId, user);
+      } else {
+        await sendMainMenu(chatId, null);
+      }
+      break;
+      
+    case 'menu_history':
+      if (user) {
+        const games = await pool.query(
+          `SELECT g.*, r.name as room_name
+           FROM games g
+           JOIN game_rooms r ON r.id = g.room_id
+           LEFT JOIN player_cartelas pc ON pc.game_id = g.id AND pc.user_id = $1
+           WHERE g.status = 'completed' AND pc.user_id IS NOT NULL
+           ORDER BY g.ended_at DESC
+           LIMIT 5`,
+          [user.id]
+        );
+        
+        if (games.rows.length === 0) {
+          await bot.sendMessage(chatId, '📭 No games played yet. Tap PLAY GAME to start!');
+        } else {
+          let history = `📜 *Recent Games*\n\n`;
+          for (const game of games.rows) {
+            const date = new Date(game.ended_at).toLocaleDateString();
+            const isWinner = game.winners && JSON.parse(game.winners).some(w => w.userId === user.id);
+            history += `• ${game.room_name} - ${date} - ${isWinner ? '🏆 WON' : '❌ LOST'}\n`;
+          }
+          await bot.sendMessage(chatId, history, { parse_mode: 'Markdown' });
+        }
+        await sendMainMenu(chatId, user);
+      } else {
+        await sendMainMenu(chatId, null);
+      }
+      break;
+      
+    case 'menu_withdraw':
+      if (user) {
+        if (user.wallet_balance < 10) {
+          await bot.sendMessage(chatId, '❌ Minimum withdrawal is 10 Birr.');
+          await sendMainMenu(chatId, user);
+          return;
+        }
+        const maxWithdraw = user.wallet_balance - 10;
+        withdrawalSteps.set(chatId, { userId: user.id, phone: user.phone });
+        await bot.sendMessage(chatId, `💸 *Withdrawal*\n\n💰 Balance: ${user.wallet_balance} Birr\n📱 Phone: ${user.phone || 'Not set'}\n\n*Max withdrawal:* ${maxWithdraw} Birr\n\nSend the amount you want to withdraw:`, { parse_mode: 'Markdown' });
+      } else {
+        await sendMainMenu(chatId, null);
+      }
+      break;
+      
+    case 'menu_help':
+      const helpMessage = `❓ *Help*\n\n*How to Play:*\n1. Tap PLAY GAME\n2. Choose a room\n3. Select lucky numbers\n4. Numbers are called automatically\n5. Win when you get BINGO!\n\n*Need Help?*\nContact support: @BingoLastSupport`;
+      await bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+      await sendMainMenu(chatId, user);
+      break;
+      
+    case 'start_registration':
+      if (user) {
+        await sendMainMenu(chatId, user);
+        return;
+      }
+      registrationSteps.set(chatId, { step: 'phone', telegramId: telegramId, username: callbackQuery.from.username || '' });
+      await bot.sendMessage(chatId, '📱 *Register*\n\nShare your phone number to create an account:', {
+        reply_markup: {
+          keyboard: [[{ text: "📱 Share Phone Number", request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true
+        },
+        parse_mode: 'Markdown'
+      });
+      break;
+  }
+});
+
+// Contact handler for registration
+bot.on('contact', async (msg) => {
+  const chatId = msg.chat.id;
+  if (!registrationSteps.has(chatId)) return;
+  
+  const stepData = registrationSteps.get(chatId);
+  if (stepData.step !== 'phone') return;
+  
+  const formattedPhone = formatPhoneNumber(msg.contact.phone_number);
+  if (!/^09[0-9]{8}$/.test(formattedPhone)) {
+    await bot.sendMessage(chatId, '❌ Invalid phone number. Use format: 0912345678');
+    registrationSteps.delete(chatId);
+    await sendMainMenu(chatId, null);
+    return;
+  }
+  
+  stepData.phone = formattedPhone;
+  stepData.step = 'password';
+  registrationSteps.set(chatId, stepData);
+  
+  await bot.sendMessage(chatId, '✅ Phone number received!\n\n🔐 Create a password (min 6 characters):', { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } });
 });
 
 console.log('🤖 Telegram bot is ready!');

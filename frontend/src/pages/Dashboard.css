@@ -535,6 +535,9 @@ background: linear-gradient(135deg, #ffb347, #ff7e5f, #ff3d00);
  .stats-container {
     grid-template-columns: repeat(2, 1fr);
   }
+    .rooms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
   .header-content {
     flex-direction: column;
     text-align: center;
