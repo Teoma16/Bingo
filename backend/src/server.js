@@ -52,7 +52,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ============= API ROUTES (MUST COME FIRST) =============
+// ============= API ROUTES =============
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/wallet', walletRoutes);
@@ -67,13 +67,6 @@ app.get('/api/health', (req, res) => {
 // ============= STATIC FILES (SERVE FRONTEND) =============
 // Serve static files from the build folder
 app.use(express.static(path.join(__dirname, '../build')));
-
-// ============= CATCH-ALL ROUTE (MUST BE LAST) =============
-// For any other route, serve index.html (for client-side routing)
-// Use (.*) instead of * to avoid the path-to-regexp error
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../build', 'index.html'));
-});
 
 // ============= ERROR HANDLING =============
 // Error handling middleware
