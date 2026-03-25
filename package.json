@@ -1,0 +1,15 @@
+{
+  "name": "bingolast",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start",
+    "postinstall": "cd backend && npm install && cd ../frontend && npm install"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
+  }
+}

@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
-  const API_URL = process.env.REACT_APP_API_URL;
+  const API_URL = process.env.REACT_APP_API_URL || '/api';
 
   // Set axios default header
   if (token) {
