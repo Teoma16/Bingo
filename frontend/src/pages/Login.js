@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // Remove useEffect since it's not used
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios'; // Add axios here
+import axios from 'axios';
 import './Login.css';
 
 function Login() {
@@ -11,7 +11,9 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-const API_URL = '/api'; // Use relative URL
+  
+  const API_URL = '/api';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -19,17 +21,14 @@ const API_URL = '/api'; // Use relative URL
 
     // Format phone number if needed
     let formattedPhone = phone.trim();
-    // Remove any spaces or special characters
     formattedPhone = formattedPhone.replace(/\D/g, '');
     
-    // Ensure it starts with 0
     if (formattedPhone.startsWith('251')) {
       formattedPhone = '0' + formattedPhone.substring(3);
     } else if (formattedPhone.startsWith('+251')) {
       formattedPhone = '0' + formattedPhone.substring(4);
     }
     
-    // Validate phone format
     const phoneRegex = /^09[0-9]{8}$/;
     if (!phoneRegex.test(formattedPhone)) {
       setError('Invalid phone number. Please use format: 0912345678');
@@ -47,39 +46,12 @@ const API_URL = '/api'; // Use relative URL
     
     setLoading(false);
   };
-// In your login page or main component
-useEffect(() => {
-  const autoLoginFromTelegram = async () => {
-    if (window.Telegram && window.Telegram.WebApp) {
-      const tg = window.Telegram.WebApp;
-      const user = tg.initDataUnsafe?.user;
-      
-      if (user) {
-        try {
-          const response = await axios.post(`${API_URL}/auth/telegram-auth`, {
-            userId: user.id,
-            username: user.username
-          });
-          
-          if (response.data.success) {
-            localStorage.setItem('token', response.data.token);
-            // Navigate to dashboard
-            navigate('/');
-          }
-        } catch (error) {
-          console.error('Auto-login failed:', error);
-        }
-      }
-    }
-  };
-  
-  autoLoginFromTelegram();
-}, []);
+
   return (
     <div className="login-container">
       <div className="login-card glass-card">
         <div className="casino-gold logo">
-          🎰 BINGO GAME
+          🎰 BINGO LAST
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -117,10 +89,10 @@ useEffect(() => {
         
         <div className="telegram-info">
           <p>Don't have an account?</p>
-          
+          <p>Register via Telegram: <strong>@YourBingoBot</strong></p>
           <button 
             className="btn-telegram"
-            onClick={() => window.open('https://t.me/LuckyBingoWinnerbot', '_blank')}
+            onClick={() => window.open('https://t.me/YourBingoBot', '_blank')}
           >
             📱 Register on Telegram
           </button>
