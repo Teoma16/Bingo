@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios'; // Add axios here
 import './Login.css';
 
 function Login() {
@@ -10,7 +11,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
+const API_URL = '/api'; // Use relative URL
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
