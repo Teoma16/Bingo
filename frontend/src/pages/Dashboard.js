@@ -35,26 +35,35 @@ function Dashboard() {
   }, []);
 
   // Real-time player count updates
-  useEffect(() => {
-    if (!socket) return;
-    
-    const handlePlayerCountUpdate = (data) => {
-      console.log('Player count update:', data);
-      setRooms(prevRooms => 
-        prevRooms.map(room => 
-          room.id === data.roomId 
-            ? { ...room, current_players: data.playerCount }
-            : room
-        )
-      );
-    };
-    
-    socket.on('player_count_update', handlePlayerCountUpdate);
-    
-    return () => {
-      socket.off('player_count_update', handlePlayerCountUpdate);
-    };
-  }, [socket]);
+ // Real-time player count updates - Updated to also update reward
+useEffect(() => {
+  if (!socket) return;
+  
+  const handlePlayerCountUpdate = (data) => {
+    console.log('Player count update:', data);
+    setRooms(prevRooms => 
+      prevRooms.map(room => {
+        if (room.id === data.roomId) {
+          const totalPool = room.entry_fee * data.playerCount;
+          const WINNER_PERCENTAGE = 78.75;
+          const reward = (totalPool * WINNER_PERCENTAGE) / 100;
+          return { 
+            ...room, 
+            current_players: data.playerCount,
+            // Store reward if needed, or just recalculate on render
+          };
+        }
+        return room;
+      })
+    );
+  };
+  
+  socket.on('player_count_update', handlePlayerCountUpdate);
+  
+  return () => {
+    socket.off('player_count_update', handlePlayerCountUpdate);
+  };
+}, [socket]);
 
   const handleDepositSuccess = () => {
     fetchBalance();
@@ -130,15 +139,40 @@ function Dashboard() {
       return null;
     }
   };
-
-  const joinRoom = async (roomId, entryFee) => {
-    console.log('Opening cartela selection for room:', roomId);
-    const gameId = await getCurrentGameId(roomId);
-    setCurrentGameId(gameId);
-    setSelectedRoom({ id: roomId, entryFee });
-    setShowCartelaSelection(true);
-  };
-
+const checkActiveGame = async (roomId) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_URL}/game/rooms/${roomId}/status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return response.data.hasActiveGame;
+  } catch (error) {
+    console.error('Error checking active game:', error);
+    return false;
+  }
+};
+const joinRoom = async (roomId, entryFee) => {
+  console.log('Opening cartela selection for room:', roomId);
+  
+  // Check if there's an active game
+  const hasActiveGame = await checkActiveGame(roomId);
+  if (hasActiveGame) {
+    alert('❌ A game is currently in progress in this room.\n\nPlease wait for it to finish before joining.\n\nCheck back in about 1-2 minutes.');
+    return;
+  }
+  
+  const gameId = await getCurrentGameId(roomId);
+  setCurrentGameId(gameId);
+  setSelectedRoom({ id: roomId, entryFee });
+  setShowCartelaSelection(true);
+};
+const calculatePotentialReward = (room) => {
+  if (!room.current_players || room.current_players === 0) return '0.00';
+  const totalPool = room.entry_fee * room.current_players;
+  const WINNER_PERCENTAGE = 78.75;
+  const reward = (totalPool * WINNER_PERCENTAGE) / 100;
+  return reward.toFixed(2);
+};
   const handleConfirmCartelas = async (selectedNumbers) => {
     setShowCartelaSelection(false);
     setLoading(true);
@@ -262,7 +296,7 @@ function Dashboard() {
               <span>💰 Balance:</span>
               <strong>{balance} Birr</strong>
             </div>
-            <div className="connection-status"className="balance-card">
+            <div className="connection-status">
               {isConnected ? '🟢 Online' : '🔴 Offline'}
             </div>
             <button onClick={handleLogout} className="btn-logout">Logout</button>
@@ -331,7 +365,7 @@ function Dashboard() {
 
 					<div className="room-details">
 					  <p>Entry Fee: <strong>{room.entry_fee} Birr</strong></p>
-					  <p>Current Players: <strong>{room.current_players || 0}</strong></p>
+					  <p>🏆 Reward: <strong>{calculatePotentialReward(room)} Birr</strong></p>
 					</div>
 
 					<button onClick={() => joinRoom(room.id, room.entry_fee)}>
