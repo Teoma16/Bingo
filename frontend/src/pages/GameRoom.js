@@ -26,7 +26,7 @@ function GameRoom() {
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winnerInfo, setWinnerInfo] = useState(null);
   const audioRef = useRef(null);
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const API_URL = '/api';
 
   // Helper function to safely parse cartela data
   const parseCartelaData = (cartelaData) => {

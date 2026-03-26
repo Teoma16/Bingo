@@ -23,7 +23,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Use the same origin as the page (Railway URL)
-  const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+  const socketUrl = window.location.origin;
     console.log('Connecting to socket server:', socketUrl);
     
     const newSocket = io(socketUrl, {

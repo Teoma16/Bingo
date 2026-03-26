@@ -26,7 +26,7 @@ function Dashboard() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [currentGameId, setCurrentGameId] = useState(null);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const API_URL = '/api';
 
   useEffect(() => {
     fetchRooms();

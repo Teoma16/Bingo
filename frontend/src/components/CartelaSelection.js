@@ -12,7 +12,10 @@ function CartelaSelection({ roomId, entryFee, onConfirm, onCancel, gameId }) {
   const [refreshing, setRefreshing] = useState(false);
   
   const { socket, isConnected, on, emit } = useSocket();
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  //const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+const API_URL = '/api';
+const SOCKET_URL = window.location.origin;
 
   // Fetch taken numbers for this game
   useEffect(() => {

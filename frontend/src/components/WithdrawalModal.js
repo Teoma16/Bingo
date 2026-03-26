@@ -10,7 +10,7 @@ function WithdrawalModal({ isOpen, onClose, balance, onSuccess }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const API_URL = '/api';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
