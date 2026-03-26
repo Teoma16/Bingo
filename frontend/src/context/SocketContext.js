@@ -22,17 +22,17 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Use the same origin as the page (Railway URL)
-  const socketUrl = window.location.origin;
-    console.log('Connecting to socket server:', socketUrl);
+    // Use the current page's origin (Railway URL)
+    const socketUrl = window.location.origin;
+    console.log('🔌 Connecting to socket server:', socketUrl);
     
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 20000
+      timeout: 30000
     });
     
     socketRef.current = newSocket;
@@ -44,8 +44,8 @@ export const SocketProvider = ({ children }) => {
       newSocket.emit('authenticate', token);
     });
 
-    newSocket.on('authenticated', () => {
-      console.log('✅ Socket authenticated successfully');
+    newSocket.on('authenticated', (data) => {
+      console.log('✅ Socket authenticated successfully', data);
     });
 
     newSocket.on('connect_error', (error) => {
@@ -56,6 +56,10 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
       setIsConnected(false);
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('Socket error:', error);
     });
 
     return () => {
