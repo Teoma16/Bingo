@@ -368,7 +368,241 @@ router.post('/rooms/:roomId/leave', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Get current game (single room)
+router.get('/current', authenticate, async (req, res) => {
+  try {
+    // Get or create waiting game for room 1 (10 Birr room)
+    let gameResult = await pool.query(
+      `SELECT * FROM games WHERE room_id = 1 AND status = 'waiting'
+       ORDER BY created_at DESC LIMIT 1`,
+      []
+    );
+    
+    let game;
+    if (gameResult.rows.length === 0) {
+      const newGame = await pool.query(
+        `INSERT INTO games (room_id, status, total_pool, total_players)
+         VALUES (1, 'waiting', 0, 0)
+         RETURNING *`,
+        []
+      );
+      game = newGame.rows[0];
+    } else {
+      game = gameResult.rows[0];
+    }
+    
+    // Get user's cartelas for this game
+    const cartelas = await pool.query(
+      `SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2`,
+      [game.id, req.userId]
+    );
+    
+    // Get all players
+    const players = await pool.query(
+      `SELECT DISTINCT u.id, u.username FROM player_cartelas pc
+       JOIN users u ON u.id = pc.user_id
+       WHERE pc.game_id = $1`,
+      [game.id]
+    );
+    
+    res.json({
+      game,
+      cartelas: cartelas.rows,
+      players: players.rows
+    });
+  } catch (error) {
+    console.error('Get current game error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
+// Join current game
+router.post('/join', authenticate, async (req, res) => {
+  const { luckyNumbers = [] } = req.body;
+  const ROOM_ID = 1;
+  const ENTRY_FEE = 10;
+  
+  try {
+    // Check for active game
+    const activeGame = await pool.query(
+      `SELECT * FROM games WHERE room_id = $1 AND status = 'active'`,
+      [ROOM_ID]
+    );
+    
+    if (activeGame.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'A game is currently in progress. Please wait for it to finish.'
+      });
+    }
+    
+    // Get or create waiting game
+    let gameResult = await pool.query(
+      `SELECT * FROM games WHERE room_id = $1 AND status = 'waiting'
+       ORDER BY created_at DESC LIMIT 1`,
+      [ROOM_ID]
+    );
+    
+    let game;
+    if (gameResult.rows.length === 0) {
+      const newGame = await pool.query(
+        `INSERT INTO games (room_id, status, total_pool, total_players)
+         VALUES ($1, 'waiting', 0, 0)
+         RETURNING *`,
+        [ROOM_ID]
+      );
+      game = newGame.rows[0];
+    } else {
+      game = gameResult.rows[0];
+    }
+    
+    // Check if numbers are taken
+    const takenNumbersResult = await pool.query(
+      'SELECT lucky_number FROM player_cartelas WHERE game_id = $1 AND lucky_number = ANY($2::int[])',
+      [game.id, luckyNumbers]
+    );
+    
+    if (takenNumbersResult.rows.length > 0) {
+      const takenNumbers = takenNumbersResult.rows.map(r => r.lucky_number);
+      return res.status(400).json({ 
+        error: `Lucky numbers ${takenNumbers.join(', ')} are already taken.`,
+        takenNumbers
+      });
+    }
+    
+    // Check balance
+    const userResult = await pool.query(
+      'SELECT wallet_balance FROM users WHERE id = $1',
+      [req.userId]
+    );
+    
+    const balance = userResult.rows[0]?.wallet_balance || 0;
+    const requiredBalance = ENTRY_FEE * luckyNumbers.length;
+    
+    if (balance < requiredBalance) {
+      return res.status(400).json({ 
+        error: 'Insufficient balance',
+        required: requiredBalance,
+        balance
+      });
+    }
+    
+    // Create cartelas
+    const cartelas = [];
+    for (const luckyNumber of luckyNumbers) {
+      const cartelaData = await getFixedCartela(luckyNumber);
+      
+      const cartelaResult = await pool.query(
+        `INSERT INTO player_cartelas (game_id, user_id, room_id, lucky_number, cartela_data, marked_numbers)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [game.id, req.userId, ROOM_ID, luckyNumber, cartelaData, JSON.stringify([])]
+      );
+      
+      cartelas.push(cartelaResult.rows[0]);
+    }
+    
+    // Deduct balance
+    await pool.query(
+      `UPDATE users SET wallet_balance = wallet_balance - $1, total_games_played = total_games_played + 1 WHERE id = $2`,
+      [requiredBalance, req.userId]
+    );
+    
+    // Add transaction
+    await pool.query(
+      `INSERT INTO wallet_transactions (user_id, amount, type, status, description)
+       VALUES ($1, $2, 'deduction', 'completed', $3)`,
+      [req.userId, -requiredBalance, `Joined game with ${luckyNumbers.length} cartela(s)`]
+    );
+    
+    // Update game pool
+    const newPool = (game.total_pool || 0) + requiredBalance;
+    const playerCount = await pool.query(
+      'SELECT COUNT(DISTINCT user_id) FROM player_cartelas WHERE game_id = $1',
+      [game.id]
+    );
+    
+    await pool.query(
+      `UPDATE games SET total_pool = $1, total_players = $2 WHERE id = $3`,
+      [newPool, parseInt(playerCount.rows[0].count), game.id]
+    );
+    
+    res.json({
+      success: true,
+      game: { ...game, total_pool: newPool },
+      cartelas
+    });
+    
+  } catch (error) {
+    console.error('Join error:', error);
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
+
+// Leave current game
+router.post('/leave', authenticate, async (req, res) => {
+  const ROOM_ID = 1;
+  
+  try {
+    const gameResult = await pool.query(
+      `SELECT * FROM games WHERE room_id = $1 AND status = 'waiting'
+       ORDER BY created_at DESC LIMIT 1`,
+      [ROOM_ID]
+    );
+    
+    if (gameResult.rows.length > 0) {
+      const game = gameResult.rows[0];
+      
+      const cartelas = await pool.query(
+        `SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2`,
+        [game.id, req.userId]
+      );
+      
+      if (cartelas.rows.length > 0) {
+        const refundAmount = ENTRY_FEE * cartelas.rows.length;
+        
+        await pool.query(
+          `UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2`,
+          [refundAmount, req.userId]
+        );
+        
+        await pool.query(
+          `DELETE FROM player_cartelas WHERE game_id = $1 AND user_id = $2`,
+          [game.id, req.userId]
+        );
+        
+        const newPlayerCount = (await pool.query(
+          'SELECT COUNT(DISTINCT user_id) FROM player_cartelas WHERE game_id = $1',
+          [game.id]
+        )).rows[0].count;
+        
+        await pool.query(
+          `UPDATE games SET total_players = $1 WHERE id = $2`,
+          [newPlayerCount, game.id]
+        );
+        
+        // Update pool
+        const totalPool = await pool.query(
+          `SELECT SUM(r.entry_fee * COUNT(pc.id)) as total_pool
+           FROM player_cartelas pc
+           JOIN game_rooms r ON r.id = pc.room_id
+           WHERE pc.game_id = $1
+           GROUP BY pc.game_id`,
+          [game.id]
+        );
+        
+        await pool.query(
+          `UPDATE games SET total_pool = $1 WHERE id = $2`,
+          [totalPool.rows[0]?.total_pool || 0, game.id]
+        );
+      }
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Leave error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // Get taken numbers for a game
 router.get('/games/:gameId/taken-numbers', authenticate, async (req, res) => {
   const { gameId } = req.params;

@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import GameRoom from './pages/GameRoom';
+//import Dashboard from './pages/Dashboard';
+//import GameRoom from './pages/GameRoom';
+import GamePage from './pages/GamePage';
 import AdminPanel from './pages/AdminPanel';
 import PrivateRoute from './components/PrivateRoute';
 import { useEffect } from 'react';
@@ -47,6 +48,7 @@ function App() {
         <Router>
           <div className="App">
             <Routes>
+			<Route path="/" element={<PrivateRoute><GamePage /></PrivateRoute>} />
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
               <Route path="/game/:roomId" element={<PrivateRoute><GameRoom /></PrivateRoute>} />

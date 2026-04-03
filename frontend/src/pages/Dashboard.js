@@ -303,7 +303,37 @@ const calculatePotentialReward = (room) => {
           </div>
         </div>
       </header>
+   {/* Game Rooms */}
+      <div className="rooms-container">
+        <h2>Select Game Room</h2>
+        {rooms.length === 0 ? (
+          <div className="loading">No rooms available</div>
+        ) : (
+         <div className="rooms-grid">
+			{rooms.map((room, index) => {
+				const colorClasses = ["card-green", "card-gold", "card-blue", "card-purple" ];
+    
+				return (
+				  <div 
+					key={room.id} 
+					className={`room-card ${colorClasses[index % colorClasses.length]}`}
+				  >
+					<h3 className="gold-text">{room.name}</h3>
 
+					<div className="room-details">
+					  <p>Entry Fee: <strong>{room.entry_fee} Birr</strong></p>
+					  <p>🏆 Reward: <strong>{calculatePotentialReward(room)} Birr</strong></p>
+					</div>
+
+					<button onClick={() => joinRoom(room.id, room.entry_fee)}>
+					  Join Room
+					</button>
+				  </div>
+				);
+  })}
+</div>
+        )}
+      </div>
       {/* User Stats */}
       <div className="stats-container">
         <div className="stat-card">
@@ -346,37 +376,7 @@ const calculatePotentialReward = (room) => {
         </button>
       </div>
 
-      {/* Game Rooms */}
-      <div className="rooms-container">
-        <h2>Select Game Room</h2>
-        {rooms.length === 0 ? (
-          <div className="loading">No rooms available</div>
-        ) : (
-         <div className="rooms-grid">
-			{rooms.map((room, index) => {
-				const colorClasses = ["card-gold", "card-blue", "card-purple", "card-green"];
-    
-				return (
-				  <div 
-					key={room.id} 
-					className={`room-card ${colorClasses[index % colorClasses.length]}`}
-				  >
-					<h3 className="gold-text">{room.name}</h3>
-
-					<div className="room-details">
-					  <p>Entry Fee: <strong>{room.entry_fee} Birr</strong></p>
-					  <p>🏆 Reward: <strong>{calculatePotentialReward(room)} Birr</strong></p>
-					</div>
-
-					<button onClick={() => joinRoom(room.id, room.entry_fee)}>
-					  Join Room
-					</button>
-				  </div>
-				);
-  })}
-</div>
-        )}
-      </div>
+   
 
       {/* Cartela Selection Modal */}
       {showCartelaSelection && selectedRoom && (
