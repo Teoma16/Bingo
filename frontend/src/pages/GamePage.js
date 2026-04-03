@@ -19,6 +19,7 @@ function GamePage() {
   const [calledNumbers, setCalledNumbers] = useState([]);
   const [countdown, setCountdown] = useState(null);
   const [gameActive, setGameActive] = useState(false);
+  const [gameHasStarted, setGameHasStarted] = useState(false); // NEW: tracks if game ever started
   const [lastCalled, setLastCalled] = useState(null);
   const [players, setPlayers] = useState([]);
   const [pool, setPool] = useState(0);
@@ -88,7 +89,13 @@ function GamePage() {
         setSelectedNumbers([]);
       }
       
-      setGameActive(response.data.game?.status === 'active');
+      const isActive = response.data.game?.status === 'active';
+      setGameActive(isActive);
+      
+      // Once game becomes active, mark that it has started
+      if (isActive && !gameHasStarted) {
+        setGameHasStarted(true);
+      }
     } catch (error) {
       console.error('Fetch game error:', error);
     } finally {
@@ -123,32 +130,27 @@ function GamePage() {
     }
   };
 
-  // Handle number click - toggle selection
   const handleNumberClick = async (number) => {
-    if (gameActive) {
+    if (gameActive || gameHasStarted) {
       alert('Game in progress! Wait for next game.');
       return;
     }
     
-    // If number is taken by another player and not selected by me
     if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
       alert(`Number ${number} is already taken!`);
       return;
     }
     
-    // If already selected, remove it
     if (selectedNumbers.includes(number)) {
       await updateSelection(selectedNumbers.filter(n => n !== number));
       return;
     }
     
-    // If trying to add third cartela
     if (selectedNumbers.length >= 2) {
       alert('Maximum 2 cartelas per player!');
       return;
     }
     
-    // Show cartela preview before selecting
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/game/generate-cartela`, {
@@ -261,12 +263,20 @@ function GamePage() {
     const unsubscribeGameState = on('game_state', (data) => { 
       setCalledNumbers(data.calledNumbers || []); 
       setGameActive(true); 
+      setGameHasStarted(true); // IMPORTANT: mark game as started
       setCountdown(null);
+    });
+    const unsubscribeGameStarting = on('game_starting', () => {
+      setGameActive(true);
+      setGameHasStarted(true); // IMPORTANT: mark game as started
+      setCountdown(null);
+      fetchGameState();
     });
     const unsubscribeNumberCalled = on('number_called', (data) => {
       setLastCalled({ number: data.number, letter: data.letter });
       setCalledNumbers(data.calledNumbers || []);
       setGameActive(true);
+      setGameHasStarted(true);
       setCountdown(null);
     });
     const unsubscribeAutoMarked = on('auto_marked', (data) => {
@@ -276,6 +286,7 @@ function GamePage() {
     });
     const unsubscribeGameEnded = on('game_ended', (data) => {
       setGameActive(false);
+      setGameHasStarted(false); // Reset for next game
       setCountdown(null);
       fetchBalance();
       setTimeout(() => {
@@ -291,6 +302,7 @@ function GamePage() {
       unsubscribeCountdown();
       unsubscribeWaiting();
       unsubscribeGameState();
+      unsubscribeGameStarting();
       unsubscribeNumberCalled();
       unsubscribeAutoMarked();
       unsubscribeGameEnded();
@@ -336,6 +348,11 @@ function GamePage() {
     );
   }
 
+  // SHOW GAMEPLAY IF:
+  // 1. Game is active (gameActive = true) OR
+  // 2. Game has started and we have cartelas (gameHasStarted = true)
+  const showGameplay = gameActive || (gameHasStarted && cartelas.length > 0);
+
   return (
     <div className="game-page">
       <header className="game-header">
@@ -355,7 +372,7 @@ function GamePage() {
             <span>Last: {lastCalled?.letter}{lastCalled?.number || '--'}</span>
             <span>🏆 {calculatePotentialReward()} Birr</span>
           </div>
-        ) : countdown > 0 ? (
+        ) : countdown > 0 && !gameHasStarted ? (
           <div className="status-countdown">
             <span>⏰ Starts in: {countdown}s</span>
             <span>🏆 {calculatePotentialReward()} Birr</span>
@@ -369,7 +386,8 @@ function GamePage() {
       </div>
 
       <div className="game-area">
-        {!gameActive ? (
+        {!showGameplay ? (
+          // Selection Mode - Show Lucky Numbers
           <div className="selection-mode">
             <div className="selection-header">
               <h3>Select Lucky Numbers (1-2)</h3>
@@ -396,6 +414,7 @@ function GamePage() {
             </div>
           </div>
         ) : (
+          // Gameplay Mode - Show Bingo Board and Cartelas
           <div className="gameplay-mode">
             <div className="bingo-board-section">
               <BingoBoard />
