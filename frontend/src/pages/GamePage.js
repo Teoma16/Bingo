@@ -25,7 +25,7 @@ function GamePage() {
   const [loading, setLoading] = useState(true);
   const [takenNumbers, setTakenNumbers] = useState([]);
   const [joining, setJoining] = useState(false);
-  const [showCartelaPreview, setShowCartelaPreview] = useState(null);
+  const [viewingCartela, setViewingCartela] = useState(null);
   
   // UI state
   const [activeTab, setActiveTab] = useState('game');
@@ -81,7 +81,6 @@ function GamePage() {
       setPlayers(response.data.players || []);
       setPool(response.data.game?.total_pool || 0);
       
-      // Update selected numbers from existing cartelas
       if (response.data.cartelas && response.data.cartelas.length > 0) {
         const numbers = response.data.cartelas.map(c => c.lucky_number);
         setSelectedNumbers(numbers);
@@ -89,11 +88,7 @@ function GamePage() {
         setSelectedNumbers([]);
       }
       
-      if (response.data.game?.status === 'active') {
-        setGameActive(true);
-      } else {
-        setGameActive(false);
-      }
+      setGameActive(response.data.game?.status === 'active');
     } catch (error) {
       console.error('Fetch game error:', error);
     } finally {
@@ -128,7 +123,32 @@ function GamePage() {
     }
   };
 
-  const generateCartelaPreview = async (number) => {
+  // Handle number click - toggle selection
+  const handleNumberClick = async (number) => {
+    if (gameActive) {
+      alert('Game in progress! Wait for next game.');
+      return;
+    }
+    
+    // If number is taken by another player and not selected by me
+    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
+      alert(`Number ${number} is already taken!`);
+      return;
+    }
+    
+    // If already selected, remove it
+    if (selectedNumbers.includes(number)) {
+      await updateSelection(selectedNumbers.filter(n => n !== number));
+      return;
+    }
+    
+    // If trying to add third cartela
+    if (selectedNumbers.length >= 2) {
+      alert('Maximum 2 cartelas per player!');
+      return;
+    }
+    
+    // Show cartela preview before selecting
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/game/generate-cartela`, {
@@ -141,52 +161,20 @@ function GamePage() {
       });
       const data = await response.json();
       const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
-      setShowCartelaPreview({ number, cartela });
+      setViewingCartela({ number, cartela });
     } catch (error) {
-      console.error('Error generating cartela preview:', error);
+      console.error('Error generating preview:', error);
     }
   };
 
-  const handleNumberClick = async (number) => {
-    // If game is active, cannot select
-    if (gameActive) {
-      alert('Game is in progress! Please wait for next game.');
-      return;
-    }
-    
-    // If number is already taken by another player
-    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
-      alert(`❌ Lucky number ${number} is already taken by another player!`);
-      return;
-    }
-    
-    // If already selected, deselect and leave game
-    if (selectedNumbers.includes(number)) {
-      await leaveGame();
-      return;
-    }
-    
-    // Show preview first
-    await generateCartelaPreview(number);
+  const confirmSelection = async () => {
+    if (!viewingCartela) return;
+    const number = viewingCartela.number;
+    await updateSelection([...selectedNumbers, number]);
+    setViewingCartela(null);
   };
 
-  const confirmSelectCartela = async () => {
-    if (!showCartelaPreview) return;
-    const number = showCartelaPreview.number;
-    
-    // If already has 2 cartelas
-    if (selectedNumbers.length >= 2) {
-      alert('You can only select up to 2 cartelas!');
-      setShowCartelaPreview(null);
-      return;
-    }
-    
-    // Join/Update game with this number
-    await updateGameSelection([...selectedNumbers, number]);
-    setShowCartelaPreview(null);
-  };
-
-  const updateGameSelection = async (numbers) => {
+  const updateSelection = async (numbers) => {
     if (joining) return;
     setJoining(true);
     
@@ -204,41 +192,26 @@ function GamePage() {
         setGame(response.data.game);
         setPool(response.data.game.total_pool);
         fetchBalance();
-        fetchGameState();
       } else {
-        alert(response.data.message || 'Failed to update selection');
+        alert(response.data.message || 'Update failed');
       }
     } catch (error) {
-      console.error('Update selection error:', error);
-      alert(error.response?.data?.error || 'Failed to update selection');
+      console.error('Update error:', error);
+      alert(error.response?.data?.error || 'Update failed');
     } finally {
       setJoining(false);
     }
   };
 
   const leaveGame = async () => {
+    if (selectedNumbers.length === 0) return;
     if (gameActive) {
       alert('Cannot leave during active game!');
       return;
     }
     
-    if (selectedNumbers.length === 0) return;
-    
-    if (window.confirm('Leave the game? Your cartela(s) will be removed.')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.post(`${API_URL}/game/leave`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        setSelectedNumbers([]);
-        setCartelas([]);
-        fetchGameState();
-        fetchBalance();
-      } catch (error) {
-        console.error('Leave error:', error);
-        alert('Failed to leave game');
-      }
+    if (window.confirm('Remove all your cartelas and leave?')) {
+      await updateSelection([]);
     }
   };
 
@@ -249,7 +222,7 @@ function GamePage() {
 
   const callBingo = (cartelaId) => {
     if (!gameActive) return;
-    if (window.confirm('Are you sure you want to call BINGO?')) {
+    if (window.confirm('Call BINGO?')) {
       if (emit) emit('call_bingo', { gameId: game?.id, cartelaId });
     }
   };
@@ -290,11 +263,6 @@ function GamePage() {
       setGameActive(true); 
       setCountdown(null);
     });
-    const unsubscribeGameStarting = on('game_starting', () => {
-      setGameActive(true);
-      setCountdown(null);
-      fetchGameState();
-    });
     const unsubscribeNumberCalled = on('number_called', (data) => {
       setLastCalled({ number: data.number, letter: data.letter });
       setCalledNumbers(data.calledNumbers || []);
@@ -306,52 +274,29 @@ function GamePage() {
         c.id === data.cartelaId ? { ...c, marked_numbers: [...(c.marked_numbers || []), data.number] } : c
       ));
     });
-    const unsubscribeNumberMarked = on('number_marked', (data) => {
-      setCartelas(prev => prev.map(c => 
-        c.id === data.cartelaId ? { ...c, marked_numbers: [...(c.marked_numbers || []), data.number] } : c
-      ));
-    });
     const unsubscribeGameEnded = on('game_ended', (data) => {
       setGameActive(false);
       setCountdown(null);
       fetchBalance();
       setTimeout(() => {
-        setSelectedNumbers([]);
-        setCartelas([]);
         fetchGameState();
-      }, 5000);
+      }, 3000);
     });
-    const unsubscribePlayerJoined = on('player_joined', () => {
+    const unsubscribeUpdate = on('game_update', () => {
       fetchGameState();
       fetchTakenNumbers();
-    });
-    const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
-      fetchTakenNumbers();
-      fetchGameState();
     });
     
     return () => {
       unsubscribeCountdown();
       unsubscribeWaiting();
       unsubscribeGameState();
-      unsubscribeGameStarting();
       unsubscribeNumberCalled();
       unsubscribeAutoMarked();
-      unsubscribeNumberMarked();
       unsubscribeGameEnded();
-      unsubscribePlayerJoined();
-      unsubscribeNumbersTaken();
+      unsubscribeUpdate();
     };
   }, [socket, game]);
-
-  if (loading) {
-    return (
-      <div className="game-loading">
-        <div className="loader"></div>
-        <p>Loading game...</p>
-      </div>
-    );
-  }
 
   // BingoBoard Component
   const BingoBoard = () => {
@@ -382,13 +327,17 @@ function GamePage() {
     );
   };
 
-  // Show selection mode if game is NOT active AND (no cartelas OR countdown not started)
-  // Once game starts (gameActive = true), show gameplay mode
-  const showSelectionMode = !gameActive;
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="loader"></div>
+        <p>Loading game...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="game-page">
-      {/* Header */}
       <header className="game-header">
         <h1 className="game-title">🎰 BINGO</h1>
         <div className="header-stats">
@@ -399,35 +348,31 @@ function GamePage() {
         </div>
       </header>
 
-      {/* Game Status */}
       <div className="game-status">
         {gameActive ? (
           <div className="status-active">
             <span className="live-badge">🔴 LIVE</span>
-            <span className="last-number">Last: {lastCalled?.letter}{lastCalled?.number || '--'}</span>
-            <span className="reward">🏆 {calculatePotentialReward()} Birr</span>
+            <span>Last: {lastCalled?.letter}{lastCalled?.number || '--'}</span>
+            <span>🏆 {calculatePotentialReward()} Birr</span>
           </div>
-        ) : countdown !== null && countdown > 0 ? (
+        ) : countdown > 0 ? (
           <div className="status-countdown">
-            <span>⏰ Game starts in:</span>
-            <span className="countdown-number">{countdown}s</span>
-            <span className="reward">🏆 {calculatePotentialReward()} Birr</span>
+            <span>⏰ Starts in: {countdown}s</span>
+            <span>🏆 {calculatePotentialReward()} Birr</span>
           </div>
         ) : (
           <div className="status-waiting">
-            <span>⏳ Waiting for players... ({players.length} players)</span>
-            <span className="reward">🏆 {calculatePotentialReward()} Birr</span>
+            <span>⏳ Waiting... ({players.length} players)</span>
+            <span>🏆 {calculatePotentialReward()} Birr</span>
           </div>
         )}
       </div>
 
-      {/* Main Game Area */}
       <div className="game-area">
-        {showSelectionMode ? (
-          // Selection Mode - Show Lucky Numbers
+        {!gameActive ? (
           <div className="selection-mode">
             <div className="selection-header">
-              <h3>Select Your Lucky Numbers (1-2)</h3>
+              <h3>Select Lucky Numbers (1-2)</h3>
               <p>Selected: {selectedNumbers.length}/2</p>
               {selectedNumbers.length > 0 && (
                 <button className="btn-leave" onClick={leaveGame}>Leave Game</button>
@@ -437,13 +382,10 @@ function GamePage() {
               {Array.from({ length: 100 }, (_, i) => i + 1).map(number => {
                 const isSelected = selectedNumbers.includes(number);
                 const isTaken = takenNumbers.includes(number) && !isSelected;
-                
                 return (
                   <button
                     key={number}
-                    className={`lucky-btn 
-                      ${isSelected ? 'selected' : ''} 
-                      ${isTaken ? 'taken' : ''}`}
+                    className={`lucky-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
                     onClick={() => handleNumberClick(number)}
                     disabled={isTaken}
                   >
@@ -454,7 +396,6 @@ function GamePage() {
             </div>
           </div>
         ) : (
-          // Gameplay Mode - Show Bingo Board and Cartelas
           <div className="gameplay-mode">
             <div className="bingo-board-section">
               <BingoBoard />
@@ -464,7 +405,6 @@ function GamePage() {
                 const cartelaData = parseCartelaData(cartela.cartela_data);
                 if (!cartelaData) return null;
                 const isAuto = cartela.is_auto_mode;
-                
                 return (
                   <div key={cartela.id} className="cartela-card">
                     <div className="cartela-header">
@@ -473,9 +413,7 @@ function GamePage() {
                         <button className={`mode-btn ${isAuto ? 'auto' : 'manual'}`} onClick={() => toggleMode(cartela.id, isAuto)}>
                           {isAuto ? '🤖 Auto' : '✋ Manual'}
                         </button>
-                        <button className="bingo-btn" onClick={() => callBingo(cartela.id)} disabled={!gameActive}>
-                          BINGO!
-                        </button>
+                        <button className="bingo-btn" onClick={() => callBingo(cartela.id)}>BINGO!</button>
                       </div>
                     </div>
                     <div className="bingo-card">
@@ -491,7 +429,7 @@ function GamePage() {
                                 key={`${col}-${row}`}
                                 className={`bingo-cell ${isMarked ? 'marked' : ''} ${isFree ? 'free' : ''}`}
                                 onClick={() => {
-                                  if (gameActive && !isAuto && number !== 'FREE' && !isMarked) {
+                                  if (gameActive && !isAuto && !isMarked && number !== 'FREE') {
                                     markNumber(cartela.id, number);
                                   }
                                 }}
@@ -512,33 +450,28 @@ function GamePage() {
       </div>
 
       {/* Cartela Preview Modal */}
-      {showCartelaPreview && (
-        <div className="cartela-modal" onClick={() => setShowCartelaPreview(null)}>
+      {viewingCartela && (
+        <div className="cartela-modal" onClick={() => setViewingCartela(null)}>
           <div className="cartela-modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowCartelaPreview(null)}>×</button>
-            <h3>Lucky Number {showCartelaPreview.number}</h3>
+            <button className="modal-close" onClick={() => setViewingCartela(null)}>×</button>
+            <h3>Lucky Number {viewingCartela.number}</h3>
             <div className="bingo-card-preview">
               <div className="bingo-header">B I N G O</div>
               {[0, 1, 2, 3, 4].map(row => (
                 <div key={row} className="bingo-row">
                   {[0, 1, 2, 3, 4].map(col => {
-                    const number = showCartelaPreview.cartela[col]?.[row];
-                    const isFree = number === 'FREE';
+                    const number = viewingCartela.cartela[col]?.[row];
                     return (
                       <div key={`${col}-${row}`} className="bingo-cell-preview">
-                        {isFree ? '⭐' : number}
+                        {number === 'FREE' ? '⭐' : number}
                       </div>
                     );
                   })}
                 </div>
               ))}
             </div>
-            <button 
-              className="btn-select" 
-              onClick={confirmSelectCartela}
-              disabled={selectedNumbers.includes(showCartelaPreview.number)}
-            >
-              {selectedNumbers.includes(showCartelaPreview.number) ? '✓ Selected' : 'Select This Cartela'}
+            <button className="btn-select" onClick={confirmSelection}>
+              Select This Cartela
             </button>
           </div>
         </div>
@@ -589,7 +522,6 @@ function GamePage() {
         </div>
       )}
 
-      {/* Modals */}
       <DepositModal isOpen={showDepositModal} onClose={() => setShowDepositModal(false)} onSuccess={() => { fetchBalance(); setActiveTab('game'); }} />
       <WithdrawalModal isOpen={showWithdrawalModal} onClose={() => setShowWithdrawalModal(false)} balance={balance} onSuccess={() => { fetchBalance(); setActiveTab('game'); }} />
     </div>
