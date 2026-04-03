@@ -83,25 +83,28 @@ function SelectionPage() {
     }
   };
 
-  const fetchCartelaPreview = async (number) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/game/generate-cartela`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ luckyNumber: number })
-      });
-      const data = await response.json();
-      const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
-      return { number, cartela };
-    } catch (error) {
-      console.error('Preview error:', error);
-      return null;
-    }
-  };
+  // In SelectionPage.js, update the fetchCartelaPreview function
+const fetchCartelaPreview = async (number) => {
+  try {
+    const token = localStorage.getItem('token');
+    // Use the generate-cartela endpoint which fetches from fixed_cartelas table
+    const response = await fetch(`${API_URL}/game/generate-cartela`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ luckyNumber: number })
+    });
+    const data = await response.json();
+    // The cartela should be from fixed_cartelas table
+    const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
+    return { number, cartela };
+  } catch (error) {
+    console.error('Preview error:', error);
+    return null;
+  }
+};
 
   // Handle number click - toggle selection immediately
   const handleNumberClick = async (number) => {

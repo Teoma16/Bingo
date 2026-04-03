@@ -256,22 +256,36 @@ router.get('/:gameId/taken-numbers', authenticate, async (req, res) => {
 });
 
 // Generate cartela preview
+// Generate cartela for preview (uses fixed cartelas from database)
 router.post('/generate-cartela', authenticate, async (req, res) => {
   const { luckyNumber } = req.body;
+  
+  console.log('Generate cartela preview for lucky number:', luckyNumber);
+  
   try {
+    // Get fixed cartela from database - THIS IS THE KEY
     const result = await pool.query(
       'SELECT cartela_data FROM fixed_cartelas WHERE lucky_number = $1',
       [luckyNumber]
     );
+    
     let cartela;
     if (result.rows.length > 0) {
       cartela = result.rows[0].cartela_data;
-      if (typeof cartela === 'string') cartela = JSON.parse(cartela);
+      // Parse if it's string
+      if (typeof cartela === 'string') {
+        cartela = JSON.parse(cartela);
+      }
+      console.log('Found fixed cartela for number', luckyNumber);
     } else {
+      // Fallback: generate cartela (should not happen if fixed_cartelas is populated)
       cartela = generateCartela();
+      console.log('Using generated cartela for number', luckyNumber);
     }
+    
     res.json({ luckyNumber, cartela });
   } catch (error) {
+    console.error('Error generating cartela:', error);
     res.status(500).json({ error: 'Failed to generate cartela' });
   }
 });
