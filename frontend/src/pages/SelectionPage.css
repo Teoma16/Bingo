@@ -610,3 +610,12 @@
   color: #ffd700;
   font-weight: bold;
 }
+.preview-note {
+  text-align: center;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 0.7rem;
+  color: #10b981;
+}

@@ -20,7 +20,7 @@ function SelectionPage() {
   const [countdown, setCountdown] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [previewCartela, setPreviewCartela] = useState(null); // Store cartela data for preview
+  const [previewCartela, setPreviewCartela] = useState(null);
   const [balance, setBalance] = useState(user?.wallet_balance || 0);
   const [transactions, setTransactions] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -103,8 +103,9 @@ function SelectionPage() {
     }
   };
 
+  // Handle number click - toggle selection immediately
   const handleNumberClick = async (number) => {
-    if (countdown > 0 && countdown !== null) {
+    if (countdown !== null && countdown > 0) {
       alert('Game starting soon! Cannot change selection.');
       return;
     }
@@ -126,19 +127,12 @@ function SelectionPage() {
       return;
     }
     
-    // Show cartela preview below the grid
+    // Show cartela preview at bottom AND auto-select
     const cartela = await fetchCartelaPreview(number);
     setPreviewCartela({ number, cartela });
-  };
-
-  const confirmSelection = async () => {
-    if (!previewCartela) return;
-    await updateSelection([...selectedNumbers, previewCartela.number]);
-    setPreviewCartela(null);
-  };
-
-  const cancelPreview = () => {
-    setPreviewCartela(null);
+    
+    // Auto-select the number
+    await updateSelection([...selectedNumbers, number]);
   };
 
   const updateSelection = async (numbers) => {
@@ -175,6 +169,7 @@ function SelectionPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Socket events
   useEffect(() => {
     if (!socket) return;
     
@@ -261,12 +256,12 @@ function SelectionPage() {
           })}
         </div>
 
-        {/* Cartela Preview Section - Shows directly below the numbers grid */}
+        {/* Cartela Preview Section - Shows at BOTTOM after numbers grid */}
         {previewCartela && (
           <div className="cartela-preview-section">
             <div className="preview-header">
-              <h3>Lucky Number {previewCartela.number}</h3>
-              <button className="preview-close" onClick={cancelPreview}>×</button>
+              <h3>Your Cartela for Lucky Number {previewCartela.number}</h3>
+              <button className="preview-close" onClick={() => setPreviewCartela(null)}>×</button>
             </div>
             <div className="preview-card">
               <div className="preview-header-row">B I N G O</div>
@@ -283,11 +278,8 @@ function SelectionPage() {
                 </div>
               ))}
             </div>
-            <div className="preview-actions">
-              <button className="cancel-btn" onClick={cancelPreview}>Cancel</button>
-              <button className="select-btn" onClick={confirmSelection}>
-                Select This Cartela ({ENTRY_FEE} Birr)
-              </button>
+            <div className="preview-note">
+              ✓ Cartela automatically selected! Click the number again to remove.
             </div>
           </div>
         )}

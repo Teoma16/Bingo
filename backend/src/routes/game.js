@@ -140,7 +140,10 @@ router.post('/update-selection', authenticate, async (req, res) => {
         return res.status(400).json({ error: 'Some numbers are already taken' });
       }
     }
-    
+    if (newPlayerCount >= 2 && game.status === 'waiting') {
+  const io = require('../server').io;
+  io.emit('start_countdown', { gameId: game.id });
+}
     // Check balance for new cartelas
     const userResult = await pool.query(
       'SELECT wallet_balance FROM users WHERE id = $1',
