@@ -49,28 +49,23 @@ const socketHandler = (socket, io) => {
 const gameCountdowns = new Map();
 
 // Add this event handler in socket.on('connection')
+// When start_countdown is received
 socket.on('start_countdown', async (data) => {
   const { gameId } = data;
   
-  if (gameCountdowns.has(gameId)) return;
+  console.log(`Starting countdown for game ${gameId}`);
   
   let countdown = 40;
   
-  const interval = setInterval(async () => {
-    if (countdown <= 0) {
-      clearInterval(interval);
-      gameCountdowns.delete(gameId);
-      
-      // Start the game
-      await startGame(gameId, io);
-      return;
-    }
-    
+  const interval = setInterval(() => {
     io.to(`game_${gameId}`).emit('countdown', { seconds: countdown });
     countdown--;
+    
+    if (countdown < 0) {
+      clearInterval(interval);
+      startGame(gameId, io);
+    }
   }, 1000);
-  
-  gameCountdowns.set(gameId, interval);
 });
   // Join game room
   socket.on('join_game', async (data) => {

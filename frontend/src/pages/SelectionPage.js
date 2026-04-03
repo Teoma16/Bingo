@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import axios from 'axios';
+import DepositModal from '../components/DepositModal';
+import WithdrawalModal from '../components/WithdrawalModal';
 import './SelectionPage.css';
 
 function SelectionPage() {
@@ -20,6 +22,10 @@ function SelectionPage() {
   const [loading, setLoading] = useState(true);
   const [viewingCartela, setViewingCartela] = useState(null);
   const [balance, setBalance] = useState(user?.wallet_balance || 0);
+  const [transactions, setTransactions] = useState([]);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   
   const API_URL = '/api';
   const ENTRY_FEE = 10;
@@ -40,7 +46,6 @@ function SelectionPage() {
         setSelectedNumbers(response.data.cartelas.map(c => c.lucky_number));
       }
       
-      // Check if game is active - navigate to gameplay
       if (response.data.game?.status === 'active') {
         navigate('/gameplay');
       }
@@ -63,19 +68,7 @@ function SelectionPage() {
       console.error('Error:', error);
     }
   };
-const unsubscribeStartCountdown = on('start_countdown', (data) => {
-  setCountdown(data.seconds);
-});
 
-const unsubscribeGameUpdate = on('game_update', (data) => {
-  fetchData();
-  fetchTakenNumbers();
-});
-
-// Also listen for when game actually starts (when countdown reaches 0)
-const unsubscribeGameStart = on('game_starting', () => {
-  navigate('/gameplay');
-});
   const fetchBalance = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -83,6 +76,7 @@ const unsubscribeGameStart = on('game_starting', () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBalance(response.data.balance);
+      setTransactions(response.data.transactions || []);
       if (updateBalance) updateBalance(response.data.balance);
     } catch (error) {
       console.error('Balance error:', error);
@@ -90,6 +84,11 @@ const unsubscribeGameStart = on('game_starting', () => {
   };
 
   const handleNumberClick = async (number) => {
+    if (countdown > 0) {
+      alert('Game starting soon! Cannot change selection.');
+      return;
+    }
+    
     if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
       alert(`Number ${number} is already taken!`);
       return;
@@ -105,7 +104,6 @@ const unsubscribeGameStart = on('game_starting', () => {
       return;
     }
     
-    // Show preview
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/game/generate-cartela`, {
@@ -167,19 +165,29 @@ const unsubscribeGameStart = on('game_starting', () => {
   useEffect(() => {
     if (!socket) return;
     
-    const unsubscribeCountdown = on('countdown', (data) => setCountdown(data.seconds));
+    const unsubscribeCountdown = on('countdown', (data) => {
+      console.log('Countdown received:', data.seconds);
+      setCountdown(data.seconds);
+    });
+    
+    const unsubscribeStartCountdown = on('start_countdown', (data) => {
+      console.log('Start countdown received');
+    });
+    
     const unsubscribeGameStart = on('game_starting', () => {
       navigate('/gameplay');
     });
-    const unsubscribeUpdate = on('game_update', () => {
+    
+    const unsubscribeGameUpdate = on('game_update', (data) => {
       fetchData();
       fetchTakenNumbers();
     });
     
     return () => {
       unsubscribeCountdown();
+      unsubscribeStartCountdown();
       unsubscribeGameStart();
-      unsubscribeUpdate();
+      unsubscribeGameUpdate();
     };
   }, [socket]);
 
@@ -194,6 +202,7 @@ const unsubscribeGameStart = on('game_starting', () => {
 
   return (
     <div className="selection-page">
+      {/* Header */}
       <header className="selection-header">
         <h1>🎰 BINGO</h1>
         <div className="header-right">
@@ -202,25 +211,27 @@ const unsubscribeGameStart = on('game_starting', () => {
         </div>
       </header>
 
-<div className="selection-status">
-  {countdown > 0 ? (
-    <div className="countdown-display">
-      <span className="countdown-label">⏰ Game starts in:</span>
-      <span className="countdown-number">{countdown}s</span>
-    </div>
-  ) : (
-    <div className="waiting-display">
-      <span>⏳ Waiting for players... ({players.length}/2 players)</span>
-    </div>
-  )}
-  <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
-</div>
+      {/* Status Bar */}
+      <div className="selection-status">
+        {countdown > 0 ? (
+          <div className="countdown-display">
+            <span className="countdown-label">⏰ Game starts in:</span>
+            <span className="countdown-number">{countdown}s</span>
+          </div>
+        ) : (
+          <div className="waiting-display">
+            <span>⏳ Waiting for players... ({players.length}/2 players)</span>
+          </div>
+        )}
+        <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
+      </div>
 
+      {/* Selection Area */}
       <div className="selection-area">
         <div className="selection-info">
           <h3>Select Your Lucky Numbers (1-2)</h3>
           <p>Selected: {selectedNumbers.length}/2</p>
-          {selectedNumbers.length > 0 && (
+          {selectedNumbers.length > 0 && countdown === null && (
             <button className="leave-btn" onClick={() => updateSelection([])}>Leave Game</button>
           )}
         </div>
@@ -234,7 +245,7 @@ const unsubscribeGameStart = on('game_starting', () => {
                 key={number}
                 className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
                 onClick={() => handleNumberClick(number)}
-                disabled={isTaken}
+                disabled={isTaken || countdown > 0}
               >
                 {number}
               </button>
@@ -243,6 +254,52 @@ const unsubscribeGameStart = on('game_starting', () => {
         </div>
       </div>
 
+      {/* Footer Navigation */}
+      <nav className="bottom-nav">
+        <div className="nav-item" onClick={() => setShowDepositModal(true)}>
+          <span className="nav-icon">💰</span>
+          <span className="nav-label">Deposit</span>
+        </div>
+        <div className="nav-item" onClick={() => setShowWithdrawalModal(true)}>
+          <span className="nav-icon">💸</span>
+          <span className="nav-label">Withdraw</span>
+        </div>
+        <div className="nav-item" onClick={() => setShowHistory(!showHistory)}>
+          <span className="nav-icon">📜</span>
+          <span className="nav-label">History</span>
+        </div>
+        <div className="nav-item" onClick={() => window.open('https://t.me/YourBingoBot', '_blank')}>
+          <span className="nav-icon">📞</span>
+          <span className="nav-label">Support</span>
+        </div>
+      </nav>
+
+      {/* History Panel */}
+      {showHistory && (
+        <div className="history-panel" onClick={() => setShowHistory(false)}>
+          <div className="history-content" onClick={e => e.stopPropagation()}>
+            <button className="history-close" onClick={() => setShowHistory(false)}>×</button>
+            <h3>Transaction History</h3>
+            <div className="history-list">
+              {transactions.length === 0 ? (
+                <p>No transactions yet</p>
+              ) : (
+                transactions.slice(0, 10).map(tx => (
+                  <div key={tx.id} className="history-item">
+                    <span>{new Date(tx.created_at).toLocaleString()}</span>
+                    <span className={tx.amount > 0 ? 'positive' : 'negative'}>
+                      {tx.amount > 0 ? '+' : ''}{tx.amount} Birr
+                    </span>
+                    <span className="history-type">{tx.type}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cartela Preview Modal */}
       {viewingCartela && (
         <div className="preview-modal" onClick={() => setViewingCartela(null)}>
           <div className="preview-content" onClick={e => e.stopPropagation()}>
@@ -267,6 +324,10 @@ const unsubscribeGameStart = on('game_starting', () => {
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <DepositModal isOpen={showDepositModal} onClose={() => setShowDepositModal(false)} onSuccess={() => { fetchBalance(); }} />
+      <WithdrawalModal isOpen={showWithdrawalModal} onClose={() => setShowWithdrawalModal(false)} balance={balance} onSuccess={() => { fetchBalance(); }} />
     </div>
   );
 }
