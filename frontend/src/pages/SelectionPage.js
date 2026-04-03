@@ -20,7 +20,7 @@ function SelectionPage() {
   const [countdown, setCountdown] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewingCartela, setViewingCartela] = useState(null);
+  const [previewCartela, setPreviewCartela] = useState(null); // Store cartela data for preview
   const [balance, setBalance] = useState(user?.wallet_balance || 0);
   const [transactions, setTransactions] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -83,27 +83,7 @@ function SelectionPage() {
     }
   };
 
-  const handleNumberClick = async (number) => {
-    if (countdown > 0) {
-      alert('Game starting soon! Cannot change selection.');
-      return;
-    }
-    
-    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
-      alert(`Number ${number} is already taken!`);
-      return;
-    }
-    
-    if (selectedNumbers.includes(number)) {
-      await updateSelection(selectedNumbers.filter(n => n !== number));
-      return;
-    }
-    
-    if (selectedNumbers.length >= 2) {
-      alert('Maximum 2 cartelas per player!');
-      return;
-    }
-    
+  const fetchCartelaPreview = async (number) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/game/generate-cartela`, {
@@ -116,16 +96,49 @@ function SelectionPage() {
       });
       const data = await response.json();
       const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
-      setViewingCartela({ number, cartela });
+      return cartela;
     } catch (error) {
       console.error('Preview error:', error);
+      return null;
     }
   };
 
+  const handleNumberClick = async (number) => {
+    if (countdown > 0 && countdown !== null) {
+      alert('Game starting soon! Cannot change selection.');
+      return;
+    }
+    
+    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
+      alert(`Number ${number} is already taken!`);
+      return;
+    }
+    
+    if (selectedNumbers.includes(number)) {
+      // Deselect - remove the number
+      await updateSelection(selectedNumbers.filter(n => n !== number));
+      setPreviewCartela(null);
+      return;
+    }
+    
+    if (selectedNumbers.length >= 2) {
+      alert('Maximum 2 cartelas per player!');
+      return;
+    }
+    
+    // Show cartela preview below the grid
+    const cartela = await fetchCartelaPreview(number);
+    setPreviewCartela({ number, cartela });
+  };
+
   const confirmSelection = async () => {
-    if (!viewingCartela) return;
-    await updateSelection([...selectedNumbers, viewingCartela.number]);
-    setViewingCartela(null);
+    if (!previewCartela) return;
+    await updateSelection([...selectedNumbers, previewCartela.number]);
+    setPreviewCartela(null);
+  };
+
+  const cancelPreview = () => {
+    setPreviewCartela(null);
   };
 
   const updateSelection = async (numbers) => {
@@ -170,10 +183,6 @@ function SelectionPage() {
       setCountdown(data.seconds);
     });
     
-    const unsubscribeStartCountdown = on('start_countdown', (data) => {
-      console.log('Start countdown received');
-    });
-    
     const unsubscribeGameStart = on('game_starting', () => {
       navigate('/gameplay');
     });
@@ -185,7 +194,6 @@ function SelectionPage() {
     
     return () => {
       unsubscribeCountdown();
-      unsubscribeStartCountdown();
       unsubscribeGameStart();
       unsubscribeGameUpdate();
     };
@@ -213,7 +221,7 @@ function SelectionPage() {
 
       {/* Status Bar */}
       <div className="selection-status">
-        {countdown > 0 ? (
+        {countdown !== null && countdown > 0 ? (
           <div className="countdown-display">
             <span className="countdown-label">⏰ Game starts in:</span>
             <span className="countdown-number">{countdown}s</span>
@@ -245,13 +253,44 @@ function SelectionPage() {
                 key={number}
                 className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
                 onClick={() => handleNumberClick(number)}
-                disabled={isTaken || countdown > 0}
+                disabled={isTaken || (countdown !== null && countdown > 0)}
               >
                 {number}
               </button>
             );
           })}
         </div>
+
+        {/* Cartela Preview Section - Shows directly below the numbers grid */}
+        {previewCartela && (
+          <div className="cartela-preview-section">
+            <div className="preview-header">
+              <h3>Lucky Number {previewCartela.number}</h3>
+              <button className="preview-close" onClick={cancelPreview}>×</button>
+            </div>
+            <div className="preview-card">
+              <div className="preview-header-row">B I N G O</div>
+              {[0, 1, 2, 3, 4].map(row => (
+                <div key={row} className="preview-row">
+                  {[0, 1, 2, 3, 4].map(col => {
+                    const num = previewCartela.cartela[col]?.[row];
+                    return (
+                      <div key={col} className="preview-cell">
+                        {num === 'FREE' ? '⭐' : num}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="preview-actions">
+              <button className="cancel-btn" onClick={cancelPreview}>Cancel</button>
+              <button className="select-btn" onClick={confirmSelection}>
+                Select This Cartela ({ENTRY_FEE} Birr)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Navigation */}
@@ -295,32 +334,6 @@ function SelectionPage() {
                 ))
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cartela Preview Modal */}
-      {viewingCartela && (
-        <div className="preview-modal" onClick={() => setViewingCartela(null)}>
-          <div className="preview-content" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setViewingCartela(null)}>×</button>
-            <h3>Lucky Number {viewingCartela.number}</h3>
-            <div className="preview-card">
-              <div className="preview-header">B I N G O</div>
-              {[0, 1, 2, 3, 4].map(row => (
-                <div key={row} className="preview-row">
-                  {[0, 1, 2, 3, 4].map(col => {
-                    const num = viewingCartela.cartela[col]?.[row];
-                    return (
-                      <div key={col} className="preview-cell">
-                        {num === 'FREE' ? '⭐' : num}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-            <button className="confirm-btn" onClick={confirmSelection}>Select This Cartela</button>
           </div>
         </div>
       )}

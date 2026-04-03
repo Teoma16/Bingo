@@ -120,7 +120,7 @@
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 8px;
-  max-height: 450px;
+  max-height: 550px;
   overflow-y: auto;
   padding: 5px;
 }
@@ -454,4 +454,159 @@
   padding: 6px 15px;
   border-radius: 30px;
   color: #ffd700;
+}
+/* Cartela Preview Section */
+.cartela-preview-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+  border-radius: 15px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.preview-header h3 {
+  color: #ffd700;
+  margin: 0;
+}
+
+.preview-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.preview-close:hover {
+  color: #ffd700;
+}
+
+.preview-card {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.preview-header-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  text-align: center;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+}
+
+.preview-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.preview-cell {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.cancel-btn {
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid #dc2626;
+  padding: 8px 20px;
+  border-radius: 30px;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.select-btn {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  border: none;
+  padding: 8px 20px;
+  border-radius: 30px;
+  color: #1a1a2e;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.select-btn:hover, .cancel-btn:hover {
+  transform: scale(1.02);
+}
+
+/* Countdown display - make sure it's visible */
+.countdown-display {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  padding: 8px 20px;
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  animation: pulse 1s infinite;
+}
+
+.countdown-label {
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+}
+
+.countdown-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  font-family: monospace;
+  background: white;
+  color: #dc2626;
+  padding: 2px 15px;
+  border-radius: 40px;
+}
+
+/* Ensure status bar has proper spacing */
+.selection-status {
+  background: rgba(0, 0, 0, 0.4);
+  margin: 15px;
+  padding: 12px 20px;
+  border-radius: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.waiting-display {
+  background: rgba(255, 215, 0, 0.2);
+  padding: 8px 20px;
+  border-radius: 40px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.reward-display {
+  background: rgba(255, 215, 0, 0.15);
+  padding: 8px 20px;
+  border-radius: 40px;
+  color: #ffd700;
+  font-weight: bold;
 }
