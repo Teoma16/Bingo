@@ -240,15 +240,13 @@ router.post('/rooms/:roomId/join', authenticate, async (req, res) => {
     
     // Broadcast player count update
     try {
-      const { io } = require('../server');
-      if (io) {
-        console.log(`Broadcasting: Room ${roomId}, Players: ${newPlayerCount}, Pool: ${totalPool}`);
-        io.emit('player_count_update', {
-          roomId: parseInt(roomId),
-          playerCount: newPlayerCount,
-          totalPool: totalPool
-        });
-      }
+      const io = require('../server').io;
+if (io) {
+  io.to(`game_${game.id}`).emit('numbers_taken', {
+    numbers: luckyNumbers,
+    userId: req.userId
+  });
+}
     } catch (err) {
       console.error('Error broadcasting:', err);
     }

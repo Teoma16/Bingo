@@ -227,27 +227,22 @@ socket.on('call_bingo', async (data) => {
 // This will broadcast when a player confirms their cartelas
 
 // Add this function to the socketHandler
+// In the join endpoint, after successfully creating cartelas, broadcast the taken numbers
 socket.on('numbers_confirmed', async (data) => {
   const { gameId, luckyNumbers } = data;
   
-  if (!socket.userId) {
-    socket.emit('error', { message: 'Not authenticated' });
-    return;
-  }
+  if (!socket.userId) return;
   
   try {
-    console.log(`Player ${socket.userId} confirmed numbers: ${luckyNumbers.join(', ')} for game ${gameId}`);
-    
-    // Broadcast to all players in the game room that these numbers are now taken
+    // Broadcast to all players in the game room
     io.to(`game_${gameId}`).emit('numbers_taken', {
       numbers: luckyNumbers,
       userId: socket.userId
     });
-    
   } catch (error) {
     console.error('Error broadcasting taken numbers:', error);
   }
-}); 
+});
 };
 
 // Verify BINGO pattern (standard 5x5)

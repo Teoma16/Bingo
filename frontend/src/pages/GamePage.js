@@ -25,6 +25,7 @@ function GamePage() {
   const [loading, setLoading] = useState(true);
   const [takenNumbers, setTakenNumbers] = useState([]);
   const [joining, setJoining] = useState(false);
+  const [showCartelaPreview, setShowCartelaPreview] = useState(null);
   
   // UI state
   const [activeTab, setActiveTab] = useState('game');
@@ -84,10 +85,14 @@ function GamePage() {
       if (response.data.cartelas && response.data.cartelas.length > 0) {
         const numbers = response.data.cartelas.map(c => c.lucky_number);
         setSelectedNumbers(numbers);
+      } else {
+        setSelectedNumbers([]);
       }
       
       if (response.data.game?.status === 'active') {
         setGameActive(true);
+      } else {
+        setGameActive(false);
       }
     } catch (error) {
       console.error('Fetch game error:', error);
@@ -123,7 +128,25 @@ function GamePage() {
     }
   };
 
-  // Auto-join when selecting a number
+  const generateCartelaPreview = async (number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/game/generate-cartela`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ luckyNumber: number })
+      });
+      const data = await response.json();
+      const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
+      setShowCartelaPreview({ number, cartela });
+    } catch (error) {
+      console.error('Error generating cartela preview:', error);
+    }
+  };
+
   const handleNumberClick = async (number) => {
     // If game is active, cannot select
     if (gameActive) {
@@ -143,14 +166,24 @@ function GamePage() {
       return;
     }
     
+    // Show preview first
+    await generateCartelaPreview(number);
+  };
+
+  const confirmSelectCartela = async () => {
+    if (!showCartelaPreview) return;
+    const number = showCartelaPreview.number;
+    
     // If already has 2 cartelas
     if (selectedNumbers.length >= 2) {
       alert('You can only select up to 2 cartelas!');
+      setShowCartelaPreview(null);
       return;
     }
     
     // Join game with this number
     await joinGame([...selectedNumbers, number]);
+    setShowCartelaPreview(null);
   };
 
   const joinGame = async (numbers) => {
@@ -178,11 +211,7 @@ function GamePage() {
         setPool(response.data.game.total_pool);
         setSelectedNumbers(numbers);
         fetchBalance();
-        
-        // Notify other players via socket
-        if (emit) {
-          emit('player_joined', { gameId: response.data.game.id, playerCount: response.data.game.total_players });
-        }
+        fetchGameState();
       } else {
         alert(response.data.message || 'Failed to join game');
       }
@@ -234,6 +263,9 @@ function GamePage() {
 
   const toggleMode = (cartelaId, currentMode) => {
     if (emit) emit('toggle_mode', { cartelaId, isAutoMode: !currentMode });
+    setCartelas(prev => prev.map(c => 
+      c.id === cartelaId ? { ...c, is_auto_mode: !currentMode } : c
+    ));
   };
 
   useEffect(() => {
@@ -290,7 +322,11 @@ function GamePage() {
         fetchGameState();
       }, 5000);
     });
-    const unsubscribePlayerJoined = on('player_joined', (data) => {
+    const unsubscribePlayerJoined = on('player_joined', () => {
+      fetchGameState();
+    });
+    const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
+      fetchTakenNumbers();
       fetchGameState();
     });
     
@@ -303,6 +339,7 @@ function GamePage() {
       unsubscribeNumberMarked();
       unsubscribeGameEnded();
       unsubscribePlayerJoined();
+      unsubscribeNumbersTaken();
     };
   }, [socket, game]);
 
@@ -395,7 +432,9 @@ function GamePage() {
               {Array.from({ length: 100 }, (_, i) => i + 1).map(number => (
                 <button
                   key={number}
-                  className={`lucky-btn ${selectedNumbers.includes(number) ? 'selected' : ''} ${takenNumbers.includes(number) ? 'taken' : ''}`}
+                  className={`lucky-btn 
+                    ${selectedNumbers.includes(number) ? 'selected' : ''} 
+                    ${takenNumbers.includes(number) ? 'taken' : ''}`}
                   onClick={() => handleNumberClick(number)}
                   disabled={takenNumbers.includes(number) && !selectedNumbers.includes(number)}
                 >
@@ -461,6 +500,39 @@ function GamePage() {
           </div>
         )}
       </div>
+
+      {/* Cartela Preview Modal */}
+      {showCartelaPreview && (
+        <div className="cartela-modal" onClick={() => setShowCartelaPreview(null)}>
+          <div className="cartela-modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCartelaPreview(null)}>×</button>
+            <h3>Lucky Number {showCartelaPreview.number}</h3>
+            <div className="bingo-card-preview">
+              <div className="bingo-header">B I N G O</div>
+              {[0, 1, 2, 3, 4].map(row => (
+                <div key={row} className="bingo-row">
+                  {[0, 1, 2, 3, 4].map(col => {
+                    const number = showCartelaPreview.cartela[col]?.[row];
+                    const isFree = number === 'FREE';
+                    return (
+                      <div key={`${col}-${row}`} className="bingo-cell-preview">
+                        {isFree ? '⭐' : number}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <button 
+              className="btn-select" 
+              onClick={confirmSelectCartela}
+              disabled={selectedNumbers.includes(showCartelaPreview.number)}
+            >
+              {selectedNumbers.includes(showCartelaPreview.number) ? '✓ Selected' : 'Select This Cartela'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
