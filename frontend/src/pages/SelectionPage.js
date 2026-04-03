@@ -229,7 +229,7 @@ const fetchCartelaPreview = async (number) => {
     <div className="selection-page">
       {/* Header */}
       <header className="selection-header">
-        <h1>🎰 BINGO</h1>
+        <h1>BINGO</h1>
         <div className="header-right">
           <span className="balance">💰 {balance} Birr</span>
           <span className={`status ${isConnected ? 'online' : 'offline'}`}></span>
@@ -274,7 +274,8 @@ const fetchCartelaPreview = async (number) => {
             );
           })}
         </div>
-
+</div>
+      <div className="selection-area">
         {/* Cartela Preview Section - Shows ALL selected cartelas side by side */}
         {previewCartelas.length > 0 && (
           <div className="cartelas-preview-section">
