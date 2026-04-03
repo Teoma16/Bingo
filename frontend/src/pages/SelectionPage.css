@@ -13,6 +13,43 @@
    padding-bottom: 80px; /* Space for footer */
   position: relative;
 }
+.selection-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    url('https://www.transparenttextures.com/patterns/diamond-upholstery.png'),
+    repeating-linear-gradient(45deg, 
+      rgba(255, 215, 0, 0.05) 0px, 
+      rgba(255, 215, 0, 0.05) 2px,
+      transparent 2px, 
+      transparent 8px);
+  background-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Decorative Golden Border Top */
+.selection-page::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    #ffd700, 
+    #ffaa00, 
+    #ffd700, 
+    #ffaa00, 
+    #ffd700, 
+    transparent);
+  z-index: 0;
+}
  /* min-height: 100vh;
   background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
   padding-bottom: 20px;
@@ -768,7 +805,7 @@
   }
   
   .numbers-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(10, 1fr);
     gap: 5px;
     max-height: 300px;
   }
