@@ -17,6 +17,8 @@ function GameplayPage() {
   const [lastCalled, setLastCalled] = useState(null);
   const [pool, setPool] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [winner, setWinner] = useState(null);
+  const [showWinner, setShowWinner] = useState(false);
   
   const API_URL = '/api';
   const WINNER_PERCENTAGE = 78.75;
@@ -62,13 +64,12 @@ function GameplayPage() {
       setCartelas(response.data.cartelas || []);
       setPool(response.data.game?.total_pool || 0);
       
-      // If game is no longer active, go back to selection
+      // If game is no longer active, don't navigate immediately - wait for winner announcement
       if (response.data.game?.status !== 'active') {
-        navigate('/');
+        // Game ended, but we'll let the socket event handle navigation after winner display
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      navigate('/');
     } finally {
       setLoading(false);
     }
@@ -90,13 +91,29 @@ function GameplayPage() {
       setLastCalled({ number: data.number, letter: data.letter });
       setCalledNumbers(data.calledNumbers || []);
     });
+    
     const unsubscribeAutoMarked = on('auto_marked', (data) => {
       setCartelas(prev => prev.map(c => 
         c.id === data.cartelaId ? { ...c, marked_numbers: [...(c.marked_numbers || []), data.number] } : c
       ));
     });
-    const unsubscribeGameEnded = on('game_ended', () => {
-      navigate('/');
+    
+    const unsubscribeGameEnded = on('game_ended', (data) => {
+      // Show winner announcement
+      setWinner(data);
+      setShowWinner(true);
+      
+      // Update balance if user won
+      if (data.winners && data.winners.some(w => w.userId === user?.id)) {
+        if (updateBalance && user) {
+          updateBalance((user.wallet_balance || 0) + (data.prizeAmount || 0));
+        }
+      }
+      
+      // Wait 5 seconds then go back to selection page
+      setTimeout(() => {
+        navigate('/');
+      }, 5000);
     });
     
     return () => {
@@ -144,6 +161,30 @@ function GameplayPage() {
 
   return (
     <div className="gameplay-page">
+      {/* Winner Announcement Modal */}
+      {showWinner && winner && (
+        <div className="winner-modal">
+          <div className="winner-content">
+            <div className="winner-trophy">🏆</div>
+            <h2>GAME OVER!</h2>
+            {winner.winners && winner.winners.length > 0 ? (
+              <>
+                <p className="winner-name">
+                  {winner.winners.some(w => w.userId === user?.id) 
+                    ? '🎉 YOU WON! 🎉' 
+                    : `${winner.winners.map(w => w.username || `Player ${w.userId}`).join(', ')} won!`}
+                </p>
+                <p className="winner-amount">+{winner.prizeAmount} Birr</p>
+                <p className="winner-message">Congratulations!</p>
+              </>
+            ) : (
+              <p className="winner-name">No winner this game!</p>
+            )}
+            <div className="winner-timer">Returning to lobby in 5 seconds...</div>
+          </div>
+        </div>
+      )}
+
       <header className="gameplay-header">
         <h1>🎰 BINGO - LIVE</h1>
         <div className="header-stats">

@@ -202,13 +202,18 @@ const unsubscribeGameStart = on('game_starting', () => {
         </div>
       </header>
 
-      <div className="selection-status">
+<div className="selection-status">
   {countdown > 0 ? (
-    <div className="countdown">⏰ Game starts in: {countdown}s</div>
+    <div className="countdown-display">
+      <span className="countdown-label">⏰ Game starts in:</span>
+      <span className="countdown-number">{countdown}s</span>
+    </div>
   ) : (
-    <div className="waiting">⏳ Waiting for players... ({players.length} players needed)</div>
+    <div className="waiting-display">
+      <span>⏳ Waiting for players... ({players.length}/2 players)</span>
+    </div>
   )}
-  <div className="reward">🏆 Winner gets: {calculateReward()} Birr</div>
+  <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
 </div>
 
       <div className="selection-area">
