@@ -193,8 +193,8 @@
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 8px;
-  max-height: 550px;
-  /*overflow-y: auto;*/
+  /*max-height: 550px;
+  overflow-y: auto;*/
   padding: 5px;
 }
 
@@ -811,11 +811,11 @@
     max-height: calc(100vh - 180px);
   }
   
-  .numbers-grid {
+ /* .numbers-grid {
     grid-template-columns: repeat(10, 1fr);
     gap: 5px;
-    max-height: 500px;
-  }
+   max-height: 500px;
+  }*/
   
   .cartelas-preview-section {
     max-height: 350px;
