@@ -20,7 +20,7 @@ function SelectionPage() {
   const [countdown, setCountdown] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [previewCartela, setPreviewCartela] = useState(null);
+  const [previewCartelas, setPreviewCartelas] = useState([]); // Array of cartelas for preview
   const [balance, setBalance] = useState(user?.wallet_balance || 0);
   const [transactions, setTransactions] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -96,7 +96,7 @@ function SelectionPage() {
       });
       const data = await response.json();
       const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
-      return cartela;
+      return { number, cartela };
     } catch (error) {
       console.error('Preview error:', error);
       return null;
@@ -104,40 +104,31 @@ function SelectionPage() {
   };
 
   // Handle number click - toggle selection immediately
-  // In SelectionPage.js, update the handleNumberClick function
-const handleNumberClick = async (number) => {
-  if (countdown !== null && countdown > 0) {
-    alert('Game starting soon! Cannot change selection.');
-    return;
-  }
-  
-  if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
-    alert(`Number ${number} is already taken!`);
-    return;
-  }
-  
-  if (selectedNumbers.includes(number)) {
-    // Deselect - remove the number
-    await updateSelection(selectedNumbers.filter(n => n !== number));
-    // Clear preview if this was the last selected
-    if (selectedNumbers.length === 1) {
-      setPreviewCartela(null);
+  const handleNumberClick = async (number) => {
+    if (countdown !== null && countdown > 0) {
+      alert('Game starting soon! Cannot change selection.');
+      return;
     }
-    return;
-  }
-  
-  if (selectedNumbers.length >= 2) {
-    alert('Maximum 2 cartelas per player!');
-    return;
-  }
-  
-  // Show cartela preview at bottom AND auto-select
-  const cartela = await fetchCartelaPreview(number);
-  setPreviewCartela({ number, cartela });
-  
-  // Auto-select the number (keeping existing selections)
-  await updateSelection([...selectedNumbers, number]);
-};
+    
+    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
+      alert(`Number ${number} is already taken!`);
+      return;
+    }
+    
+    if (selectedNumbers.includes(number)) {
+      // Deselect - remove the number
+      await updateSelection(selectedNumbers.filter(n => n !== number));
+      return;
+    }
+    
+    if (selectedNumbers.length >= 2) {
+      alert('Maximum 2 cartelas per player!');
+      return;
+    }
+    
+    // Auto-select the number
+    await updateSelection([...selectedNumbers, number]);
+  };
 
   const updateSelection = async (numbers) => {
     try {
@@ -150,10 +141,25 @@ const handleNumberClick = async (number) => {
       setSelectedNumbers(numbers);
       fetchData();
       fetchBalance();
+      
+      // Update preview cartelas based on selected numbers
+      await updatePreviewCartelas(numbers);
     } catch (error) {
       console.error('Update error:', error);
       alert(error.response?.data?.error || 'Update failed');
     }
+  };
+
+  // Update preview cartelas whenever selected numbers change
+  const updatePreviewCartelas = async (numbers) => {
+    const newPreviews = [];
+    for (const number of numbers) {
+      const preview = await fetchCartelaPreview(number);
+      if (preview) {
+        newPreviews.push(preview);
+      }
+    }
+    setPreviewCartelas(newPreviews);
   };
 
   const calculateReward = () => {
@@ -172,6 +178,15 @@ const handleNumberClick = async (number) => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Load previews when selectedNumbers changes
+  useEffect(() => {
+    if (selectedNumbers.length > 0) {
+      updatePreviewCartelas(selectedNumbers);
+    } else {
+      setPreviewCartelas([]);
+    }
+  }, [selectedNumbers]);
 
   // Socket events
   useEffect(() => {
@@ -238,9 +253,6 @@ const handleNumberClick = async (number) => {
         <div className="selection-info">
           <h3>Select Your Lucky Numbers (1-2)</h3>
           <p>Selected: {selectedNumbers.length}/2</p>
-          {selectedNumbers.length > 0 && countdown === null && (
-            <button className="leave-btn" onClick={() => updateSelection([])}>Leave Game</button>
-          )}
         </div>
 
         <div className="numbers-grid">
@@ -249,41 +261,51 @@ const handleNumberClick = async (number) => {
             const isTaken = takenNumbers.includes(number) && !isSelected;
             return (
               <button
-  key={number}
-  className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
-  onClick={() => handleNumberClick(number)}
-  disabled={isTaken || (countdown !== null && countdown > 0)}
->
-  {number}
-</button>
+                key={number}
+                className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
+                onClick={() => handleNumberClick(number)}
+                disabled={isTaken || (countdown !== null && countdown > 0)}
+              >
+                {number}
+              </button>
             );
           })}
         </div>
 
-        {/* Cartela Preview Section - Shows at BOTTOM after numbers grid */}
-        {previewCartela && (
-          <div className="cartela-preview-section">
-            <div className="preview-header">
-              <h3>Your Cartela for Lucky Number {previewCartela.number}</h3>
-              <button className="preview-close" onClick={() => setPreviewCartela(null)}>×</button>
-            </div>
-            <div className="preview-card">
-              <div className="preview-header-row">B I N G O</div>
-              {[0, 1, 2, 3, 4].map(row => (
-                <div key={row} className="preview-row">
-                  {[0, 1, 2, 3, 4].map(col => {
-                    const num = previewCartela.cartela[col]?.[row];
-                    return (
-                      <div key={col} className="preview-cell">
-                        {num === 'FREE' ? '⭐' : num}
+        {/* Cartela Preview Section - Shows ALL selected cartelas side by side */}
+        {previewCartelas.length > 0 && (
+          <div className="cartelas-preview-section">
+            <h3>Your Cartelas</h3>
+            <div className="cartelas-preview-container">
+              {previewCartelas.map((preview, index) => (
+                <div key={preview.number} className="cartela-preview-card">
+                  <div className="preview-number">Lucky #{preview.number}</div>
+                  <div className="preview-card-content">
+                    <div className="preview-header-row">B I N G O</div>
+                    {[0, 1, 2, 3, 4].map(row => (
+                      <div key={row} className="preview-row">
+                        {[0, 1, 2, 3, 4].map(col => {
+                          const num = preview.cartela[col]?.[row];
+                          return (
+                            <div key={col} className="preview-cell">
+                              {num === 'FREE' ? '⭐' : num}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                  <button 
+                    className="remove-cartela-btn"
+                    onClick={() => handleNumberClick(preview.number)}
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>
             <div className="preview-note">
-              ✓ Cartela automatically selected! Click the number again to remove.
+              ✓ Click on a selected number or press Remove to deselect
             </div>
           </div>
         )}
