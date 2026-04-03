@@ -417,10 +417,13 @@ router.get('/current', authenticate, async (req, res) => {
 });
 
 // Join current game
+// Join current game
 router.post('/join', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
   const ROOM_ID = 1;
   const ENTRY_FEE = 10;
+  
+  console.log('Join request - luckyNumbers:', luckyNumbers);
   
   try {
     // Check for active game
@@ -451,8 +454,10 @@ router.post('/join', authenticate, async (req, res) => {
         [ROOM_ID]
       );
       game = newGame.rows[0];
+      console.log('Created new game:', game.id);
     } else {
       game = gameResult.rows[0];
+      console.log('Using existing game:', game.id);
     }
     
     // Check if numbers are taken
@@ -489,16 +494,37 @@ router.post('/join', authenticate, async (req, res) => {
     // Create cartelas
     const cartelas = [];
     for (const luckyNumber of luckyNumbers) {
-      const cartelaData = await getFixedCartela(luckyNumber);
-      
+      // Get fixed cartela from database
       const cartelaResult = await pool.query(
-        `INSERT INTO player_cartelas (game_id, user_id, room_id, lucky_number, cartela_data, marked_numbers)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *`,
-        [game.id, req.userId, ROOM_ID, luckyNumber, cartelaData, JSON.stringify([])]
+        'SELECT cartela_data FROM fixed_cartelas WHERE lucky_number = $1',
+        [luckyNumber]
       );
       
-      cartelas.push(cartelaResult.rows[0]);
+      let cartelaData;
+      if (cartelaResult.rows.length > 0) {
+        // cartela_data is already in JSON format
+        cartelaData = cartelaResult.rows[0].cartela_data;
+        // If it's a string, parse it first then stringify for insert
+        if (typeof cartelaData === 'string') {
+          cartelaData = JSON.parse(cartelaData);
+        }
+      } else {
+        // Fallback: generate cartela
+        cartelaData = generateCartela();
+      }
+      
+      // Ensure cartela_data is valid JSON
+      const cartelaDataForInsert = JSON.stringify(cartelaData);
+      
+      const newCartela = await pool.query(
+        `INSERT INTO player_cartelas (game_id, user_id, room_id, lucky_number, cartela_data, marked_numbers, is_auto_mode)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [game.id, req.userId, ROOM_ID, luckyNumber, cartelaDataForInsert, JSON.stringify([]), true]
+      );
+      
+      cartelas.push(newCartela.rows[0]);
+      console.log(`Created cartela for lucky number ${luckyNumber}`);
     }
     
     // Deduct balance
@@ -516,15 +542,18 @@ router.post('/join', authenticate, async (req, res) => {
     
     // Update game pool
     const newPool = (game.total_pool || 0) + requiredBalance;
-    const playerCount = await pool.query(
-      'SELECT COUNT(DISTINCT user_id) FROM player_cartelas WHERE game_id = $1',
+    const playerCountResult = await pool.query(
+      'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
       [game.id]
     );
+    const newPlayerCount = parseInt(playerCountResult.rows[0].count);
     
     await pool.query(
       `UPDATE games SET total_pool = $1, total_players = $2 WHERE id = $3`,
-      [newPool, parseInt(playerCount.rows[0].count), game.id]
+      [newPool, newPlayerCount, game.id]
     );
+    
+    console.log(`Game ${game.id} updated - Pool: ${newPool}, Players: ${newPlayerCount}`);
     
     res.json({
       success: true,
