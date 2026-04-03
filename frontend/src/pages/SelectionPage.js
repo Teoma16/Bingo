@@ -104,36 +104,40 @@ function SelectionPage() {
   };
 
   // Handle number click - toggle selection immediately
-  const handleNumberClick = async (number) => {
-    if (countdown !== null && countdown > 0) {
-      alert('Game starting soon! Cannot change selection.');
-      return;
-    }
-    
-    if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
-      alert(`Number ${number} is already taken!`);
-      return;
-    }
-    
-    if (selectedNumbers.includes(number)) {
-      // Deselect - remove the number
-      await updateSelection(selectedNumbers.filter(n => n !== number));
+  // In SelectionPage.js, update the handleNumberClick function
+const handleNumberClick = async (number) => {
+  if (countdown !== null && countdown > 0) {
+    alert('Game starting soon! Cannot change selection.');
+    return;
+  }
+  
+  if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
+    alert(`Number ${number} is already taken!`);
+    return;
+  }
+  
+  if (selectedNumbers.includes(number)) {
+    // Deselect - remove the number
+    await updateSelection(selectedNumbers.filter(n => n !== number));
+    // Clear preview if this was the last selected
+    if (selectedNumbers.length === 1) {
       setPreviewCartela(null);
-      return;
     }
-    
-    if (selectedNumbers.length >= 2) {
-      alert('Maximum 2 cartelas per player!');
-      return;
-    }
-    
-    // Show cartela preview at bottom AND auto-select
-    const cartela = await fetchCartelaPreview(number);
-    setPreviewCartela({ number, cartela });
-    
-    // Auto-select the number
-    await updateSelection([...selectedNumbers, number]);
-  };
+    return;
+  }
+  
+  if (selectedNumbers.length >= 2) {
+    alert('Maximum 2 cartelas per player!');
+    return;
+  }
+  
+  // Show cartela preview at bottom AND auto-select
+  const cartela = await fetchCartelaPreview(number);
+  setPreviewCartela({ number, cartela });
+  
+  // Auto-select the number (keeping existing selections)
+  await updateSelection([...selectedNumbers, number]);
+};
 
   const updateSelection = async (numbers) => {
     try {
@@ -245,13 +249,13 @@ function SelectionPage() {
             const isTaken = takenNumbers.includes(number) && !isSelected;
             return (
               <button
-                key={number}
-                className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
-                onClick={() => handleNumberClick(number)}
-                disabled={isTaken || (countdown !== null && countdown > 0)}
-              >
-                {number}
-              </button>
+  key={number}
+  className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
+  onClick={() => handleNumberClick(number)}
+  disabled={isTaken || (countdown !== null && countdown > 0)}
+>
+  {number}
+</button>
             );
           })}
         </div>

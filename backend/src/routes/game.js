@@ -85,6 +85,7 @@ router.get('/current', authenticate, async (req, res) => {
 });
 
 // Update selection (add/remove cartelas)
+// Update selection (add/remove cartelas)
 router.post('/update-selection', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
   const ENTRY_FEE = 10;
@@ -137,13 +138,12 @@ router.post('/update-selection', authenticate, async (req, res) => {
         [game.id, numbersToAdd]
       );
       if (takenNumbers.rows.length > 0) {
-        return res.status(400).json({ error: 'Some numbers are already taken' });
+        return res.status(400).json({ 
+          error: `Numbers ${takenNumbers.rows.map(r => r.lucky_number).join(', ')} are already taken`
+        });
       }
     }
-    if (newPlayerCount >= 2 && game.status === 'waiting') {
-  const io = require('../server').io;
-  io.emit('start_countdown', { gameId: game.id });
-}
+    
     // Check balance for new cartelas
     const userResult = await pool.query(
       'SELECT wallet_balance FROM users WHERE id = $1',
@@ -202,7 +202,7 @@ router.post('/update-selection', authenticate, async (req, res) => {
     
     // Update game pool and player count
     const playerCountResult = await pool.query(
-      'SELECT COUNT(DISTINCT user_id) FROM player_cartelas WHERE game_id = $1',
+      'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
       [game.id]
     );
     const newPlayerCount = parseInt(playerCountResult.rows[0].count);
@@ -222,12 +222,9 @@ router.post('/update-selection', authenticate, async (req, res) => {
     const io = require('../server').io;
     if (io) {
       io.emit('game_update', { gameId: game.id, playerCount: newPlayerCount, pool: newPool });
-    }
-    
-    // Start countdown if we have at least 2 players and countdown not started
-    if (newPlayerCount >= 2 && game.status === 'waiting') {
-      const io = require('../server').io;
-      if (io) {
+      
+      // Start countdown if we have at least 2 players and game is waiting
+      if (newPlayerCount >= 2 && game.status === 'waiting') {
         io.emit('start_countdown', { gameId: game.id });
       }
     }
