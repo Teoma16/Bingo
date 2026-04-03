@@ -26,6 +26,7 @@ function GamePage() {
   const [takenNumbers, setTakenNumbers] = useState([]);
   const [joining, setJoining] = useState(false);
   const [showCartelaPreview, setShowCartelaPreview] = useState(null);
+  const [hasJoinedGame, setHasJoinedGame] = useState(false);
   
   // UI state
   const [activeTab, setActiveTab] = useState('game');
@@ -85,8 +86,10 @@ function GamePage() {
       if (response.data.cartelas && response.data.cartelas.length > 0) {
         const numbers = response.data.cartelas.map(c => c.lucky_number);
         setSelectedNumbers(numbers);
+        setHasJoinedGame(true);
       } else {
         setSelectedNumbers([]);
+        setHasJoinedGame(false);
       }
       
       if (response.data.game?.status === 'active') {
@@ -181,43 +184,37 @@ function GamePage() {
       return;
     }
     
-    // Join game with this number
-    await joinGame([...selectedNumbers, number]);
+    // Join/Update game with this number
+    await updateGameSelection([...selectedNumbers, number]);
     setShowCartelaPreview(null);
   };
 
-  const joinGame = async (numbers) => {
+  const updateGameSelection = async (numbers) => {
     if (joining) return;
     setJoining(true);
-    
-    const requiredAmount = ENTRY_FEE * numbers.length;
-    if (balance < requiredAmount) {
-      alert(`❌ Insufficient balance!\n\nRequired: ${requiredAmount} Birr\nYour balance: ${balance} Birr`);
-      setJoining(false);
-      return;
-    }
     
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/game/join`,
+        `${API_URL}/game/update-selection`,
         { luckyNumbers: numbers },
         { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
       
       if (response.data.success) {
+        setSelectedNumbers(numbers);
         setCartelas(response.data.cartelas);
         setGame(response.data.game);
         setPool(response.data.game.total_pool);
-        setSelectedNumbers(numbers);
+        setHasJoinedGame(numbers.length > 0);
         fetchBalance();
         fetchGameState();
       } else {
-        alert(response.data.message || 'Failed to join game');
+        alert(response.data.message || 'Failed to update selection');
       }
     } catch (error) {
-      console.error('Join error:', error);
-      alert(error.response?.data?.error || 'Failed to join game');
+      console.error('Update selection error:', error);
+      alert(error.response?.data?.error || 'Failed to update selection');
     } finally {
       setJoining(false);
     }
@@ -240,6 +237,7 @@ function GamePage() {
         
         setSelectedNumbers([]);
         setCartelas([]);
+        setHasJoinedGame(false);
         fetchGameState();
         fetchBalance();
       } catch (error) {
@@ -319,6 +317,7 @@ function GamePage() {
       setTimeout(() => {
         setSelectedNumbers([]);
         setCartelas([]);
+        setHasJoinedGame(false);
         fetchGameState();
       }, 5000);
     });
@@ -381,6 +380,9 @@ function GamePage() {
     );
   };
 
+  // Show selection mode if game hasn't started OR player hasn't joined yet (but still show selection)
+  const showSelectionMode = !gameActive && (!hasJoinedGame || countdown === null || countdown > 0);
+
   return (
     <div className="game-page">
       {/* Header */}
@@ -418,7 +420,7 @@ function GamePage() {
 
       {/* Main Game Area */}
       <div className="game-area">
-        {!gameActive && cartelas.length === 0 ? (
+        {showSelectionMode ? (
           // Selection Mode - Show Lucky Numbers
           <div className="selection-mode">
             <div className="selection-header">

@@ -414,7 +414,177 @@ router.get('/current', authenticate, async (req, res) => {
   }
 });
 
-// Join current game
+// Update game selection (add/remove cartelas)
+router.post('/update-selection', authenticate, async (req, res) => {
+  const { luckyNumbers = [] } = req.body;
+  const ROOM_ID = 1;
+  const ENTRY_FEE = 10;
+  
+  try {
+    // Check for active game
+    const activeGame = await pool.query(
+      `SELECT * FROM games WHERE room_id = $1 AND status = 'active'`,
+      [ROOM_ID]
+    );
+    
+    if (activeGame.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Game already in progress. Cannot change selection.'
+      });
+    }
+    
+    // Get current game
+    let gameResult = await pool.query(
+      `SELECT * FROM games WHERE room_id = $1 AND status = 'waiting'
+       ORDER BY created_at DESC LIMIT 1`,
+      [ROOM_ID]
+    );
+    
+    let game;
+    if (gameResult.rows.length === 0) {
+      // Create new game if none exists
+      const newGame = await pool.query(
+        `INSERT INTO games (room_id, status, total_pool, total_players)
+         VALUES ($1, 'waiting', 0, 0)
+         RETURNING *`,
+        [ROOM_ID]
+      );
+      game = newGame.rows[0];
+    } else {
+      game = gameResult.rows[0];
+    }
+    
+    // Get user's current cartelas
+    const currentCartelas = await pool.query(
+      'SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2',
+      [game.id, req.userId]
+    );
+    
+    const currentNumbers = currentCartelas.rows.map(c => c.lucky_number);
+    const numbersToAdd = luckyNumbers.filter(n => !currentNumbers.includes(n));
+    const numbersToRemove = currentNumbers.filter(n => !luckyNumbers.includes(n));
+    
+    // Check if numbers to add are available
+    if (numbersToAdd.length > 0) {
+      const takenNumbers = await pool.query(
+        'SELECT lucky_number FROM player_cartelas WHERE game_id = $1 AND lucky_number = ANY($2::int[])',
+        [game.id, numbersToAdd]
+      );
+      
+      if (takenNumbers.rows.length > 0) {
+        return res.status(400).json({ 
+          error: `Numbers ${takenNumbers.rows.map(r => r.lucky_number).join(', ')} are already taken`
+        });
+      }
+    }
+    
+    // Check balance for new cartelas
+    const userResult = await pool.query(
+      'SELECT wallet_balance FROM users WHERE id = $1',
+      [req.userId]
+    );
+    const balance = userResult.rows[0]?.wallet_balance || 0;
+    const additionalCost = ENTRY_FEE * numbersToAdd.length;
+    
+    if (additionalCost > 0 && balance < additionalCost) {
+      return res.status(400).json({ 
+        error: 'Insufficient balance to add more cartelas',
+        required: additionalCost,
+        balance
+      });
+    }
+    
+    // Remove cartelas
+    if (numbersToRemove.length > 0) {
+      await pool.query(
+        'DELETE FROM player_cartelas WHERE game_id = $1 AND user_id = $2 AND lucky_number = ANY($3::int[])',
+        [game.id, req.userId, numbersToRemove]
+      );
+      
+      // Refund
+      const refundAmount = ENTRY_FEE * numbersToRemove.length;
+      await pool.query(
+        'UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2',
+        [refundAmount, req.userId]
+      );
+    }
+    
+    // Add new cartelas
+    const newCartelas = [];
+    for (const luckyNumber of numbersToAdd) {
+      const cartelaDataResult = await pool.query(
+        'SELECT cartela_data FROM fixed_cartelas WHERE lucky_number = $1',
+        [luckyNumber]
+      );
+      
+      let cartelaData;
+      if (cartelaDataResult.rows.length > 0) {
+        cartelaData = cartelaDataResult.rows[0].cartela_data;
+        if (typeof cartelaData === 'string') {
+          cartelaData = JSON.parse(cartelaData);
+        }
+      } else {
+        cartelaData = generateCartela();
+      }
+      
+      const newCartela = await pool.query(
+        `INSERT INTO player_cartelas (game_id, user_id, room_id, lucky_number, cartela_data, marked_numbers, is_auto_mode)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [game.id, req.userId, ROOM_ID, luckyNumber, JSON.stringify(cartelaData), JSON.stringify([]), true]
+      );
+      
+      newCartelas.push(newCartela.rows[0]);
+    }
+    
+    // Deduct cost for new cartelas
+    if (additionalCost > 0) {
+      await pool.query(
+        'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2',
+        [additionalCost, req.userId]
+      );
+    }
+    
+    // Get all cartelas after changes
+    const allCartelas = await pool.query(
+      'SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2',
+      [game.id, req.userId]
+    );
+    
+    // Update game pool
+    const totalPoolResult = await pool.query(
+      'SELECT SUM(entry_fee) as total FROM player_cartelas pc JOIN game_rooms r ON r.id = pc.room_id WHERE pc.game_id = $1',
+      [game.id]
+    );
+    const newPool = parseFloat(totalPoolResult.rows[0]?.total || 0);
+    
+    const playerCountResult = await pool.query(
+      'SELECT COUNT(DISTINCT user_id) FROM player_cartelas WHERE game_id = $1',
+      [game.id]
+    );
+    
+    await pool.query(
+      'UPDATE games SET total_pool = $1, total_players = $2 WHERE id = $3',
+      [newPool, parseInt(playerCountResult.rows[0].count), game.id]
+    );
+    
+    // Broadcast update to other players
+    const io = require('../server').io;
+    if (io) {
+      io.emit('player_joined', { gameId: game.id });
+    }
+    
+    res.json({
+      success: true,
+      game: { ...game, total_pool: newPool },
+      cartelas: allCartelas.rows
+    });
+    
+  } catch (error) {
+    console.error('Update selection error:', error);
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
 // Join current game
 router.post('/join', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
