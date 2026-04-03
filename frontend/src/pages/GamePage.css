@@ -600,3 +600,40 @@
 .selection-header p {
   margin: 5px 0;
 }
+/* Lucky number buttons */
+.lucky-btn {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lucky-btn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.3);
+  transform: scale(1.05);
+}
+
+/* Selected by current player */
+.lucky-btn.selected {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  color: white;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* Taken by other player */
+.lucky-btn.taken {
+  background: rgba(220, 38, 38, 0.5);
+  border-color: #dc2626;
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.lucky-btn:disabled {
+  cursor: not-allowed;
+}

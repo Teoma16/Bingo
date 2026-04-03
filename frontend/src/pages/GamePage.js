@@ -26,7 +26,6 @@ function GamePage() {
   const [takenNumbers, setTakenNumbers] = useState([]);
   const [joining, setJoining] = useState(false);
   const [showCartelaPreview, setShowCartelaPreview] = useState(null);
-  const [hasJoinedGame, setHasJoinedGame] = useState(false);
   
   // UI state
   const [activeTab, setActiveTab] = useState('game');
@@ -86,10 +85,8 @@ function GamePage() {
       if (response.data.cartelas && response.data.cartelas.length > 0) {
         const numbers = response.data.cartelas.map(c => c.lucky_number);
         setSelectedNumbers(numbers);
-        setHasJoinedGame(true);
       } else {
         setSelectedNumbers([]);
-        setHasJoinedGame(false);
       }
       
       if (response.data.game?.status === 'active') {
@@ -206,7 +203,6 @@ function GamePage() {
         setCartelas(response.data.cartelas);
         setGame(response.data.game);
         setPool(response.data.game.total_pool);
-        setHasJoinedGame(numbers.length > 0);
         fetchBalance();
         fetchGameState();
       } else {
@@ -237,7 +233,6 @@ function GamePage() {
         
         setSelectedNumbers([]);
         setCartelas([]);
-        setHasJoinedGame(false);
         fetchGameState();
         fetchBalance();
       } catch (error) {
@@ -295,6 +290,11 @@ function GamePage() {
       setGameActive(true); 
       setCountdown(null);
     });
+    const unsubscribeGameStarting = on('game_starting', () => {
+      setGameActive(true);
+      setCountdown(null);
+      fetchGameState();
+    });
     const unsubscribeNumberCalled = on('number_called', (data) => {
       setLastCalled({ number: data.number, letter: data.letter });
       setCalledNumbers(data.calledNumbers || []);
@@ -313,16 +313,17 @@ function GamePage() {
     });
     const unsubscribeGameEnded = on('game_ended', (data) => {
       setGameActive(false);
+      setCountdown(null);
       fetchBalance();
       setTimeout(() => {
         setSelectedNumbers([]);
         setCartelas([]);
-        setHasJoinedGame(false);
         fetchGameState();
       }, 5000);
     });
     const unsubscribePlayerJoined = on('player_joined', () => {
       fetchGameState();
+      fetchTakenNumbers();
     });
     const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
       fetchTakenNumbers();
@@ -333,6 +334,7 @@ function GamePage() {
       unsubscribeCountdown();
       unsubscribeWaiting();
       unsubscribeGameState();
+      unsubscribeGameStarting();
       unsubscribeNumberCalled();
       unsubscribeAutoMarked();
       unsubscribeNumberMarked();
@@ -380,8 +382,9 @@ function GamePage() {
     );
   };
 
-  // Show selection mode if game hasn't started OR player hasn't joined yet (but still show selection)
-  const showSelectionMode = !gameActive && (!hasJoinedGame || countdown === null || countdown > 0);
+  // Show selection mode if game is NOT active AND (no cartelas OR countdown not started)
+  // Once game starts (gameActive = true), show gameplay mode
+  const showSelectionMode = !gameActive;
 
   return (
     <div className="game-page">
@@ -431,18 +434,23 @@ function GamePage() {
               )}
             </div>
             <div className="lucky-numbers-grid">
-              {Array.from({ length: 100 }, (_, i) => i + 1).map(number => (
-                <button
-                  key={number}
-                  className={`lucky-btn 
-                    ${selectedNumbers.includes(number) ? 'selected' : ''} 
-                    ${takenNumbers.includes(number) ? 'taken' : ''}`}
-                  onClick={() => handleNumberClick(number)}
-                  disabled={takenNumbers.includes(number) && !selectedNumbers.includes(number)}
-                >
-                  {number}
-                </button>
-              ))}
+              {Array.from({ length: 100 }, (_, i) => i + 1).map(number => {
+                const isSelected = selectedNumbers.includes(number);
+                const isTaken = takenNumbers.includes(number) && !isSelected;
+                
+                return (
+                  <button
+                    key={number}
+                    className={`lucky-btn 
+                      ${isSelected ? 'selected' : ''} 
+                      ${isTaken ? 'taken' : ''}`}
+                    onClick={() => handleNumberClick(number)}
+                    disabled={isTaken}
+                  >
+                    {number}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : (
