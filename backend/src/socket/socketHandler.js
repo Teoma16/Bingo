@@ -45,7 +45,33 @@ const socketHandler = (socket, io) => {
       socket.emit('error', { message: 'Authentication failed' });
     }
   });
+  // Add this at the top with other maps
+const gameCountdowns = new Map();
+
+// Add this event handler in socket.on('connection')
+socket.on('start_countdown', async (data) => {
+  const { gameId } = data;
   
+  if (gameCountdowns.has(gameId)) return;
+  
+  let countdown = 40;
+  
+  const interval = setInterval(async () => {
+    if (countdown <= 0) {
+      clearInterval(interval);
+      gameCountdowns.delete(gameId);
+      
+      // Start the game
+      await startGame(gameId, io);
+      return;
+    }
+    
+    io.to(`game_${gameId}`).emit('countdown', { seconds: countdown });
+    countdown--;
+  }, 1000);
+  
+  gameCountdowns.set(gameId, interval);
+});
   // Join game room
   socket.on('join_game', async (data) => {
     const { gameId } = data;

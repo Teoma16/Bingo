@@ -63,7 +63,19 @@ function SelectionPage() {
       console.error('Error:', error);
     }
   };
+const unsubscribeStartCountdown = on('start_countdown', (data) => {
+  setCountdown(data.seconds);
+});
 
+const unsubscribeGameUpdate = on('game_update', (data) => {
+  fetchData();
+  fetchTakenNumbers();
+});
+
+// Also listen for when game actually starts (when countdown reaches 0)
+const unsubscribeGameStart = on('game_starting', () => {
+  navigate('/gameplay');
+});
   const fetchBalance = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -191,13 +203,13 @@ function SelectionPage() {
       </header>
 
       <div className="selection-status">
-        {countdown > 0 ? (
-          <div className="countdown">⏰ Game starts in: {countdown}s</div>
-        ) : (
-          <div className="waiting">⏳ Waiting for players... ({players.length} players)</div>
-        )}
-        <div className="reward">🏆 Winner gets: {calculateReward()} Birr</div>
-      </div>
+  {countdown > 0 ? (
+    <div className="countdown">⏰ Game starts in: {countdown}s</div>
+  ) : (
+    <div className="waiting">⏳ Waiting for players... ({players.length} players needed)</div>
+  )}
+  <div className="reward">🏆 Winner gets: {calculateReward()} Birr</div>
+</div>
 
       <div className="selection-area">
         <div className="selection-info">
