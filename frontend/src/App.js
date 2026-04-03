@@ -8,6 +8,8 @@ import AdminPanel from './pages/AdminPanel';
 import PrivateRoute from './components/PrivateRoute';
 import './styles/casino-theme.css';
 import './App.css';
+import SelectionPage from './pages/SelectionPage';
+import GameplayPage from './pages/GameplayPage';
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
               <Route path="/" element={<PrivateRoute><GamePage /></PrivateRoute>} />  {/* Changed from Dashboard to GamePage */}
               <Route path="/admin" element={<PrivateRoute adminOnly><AdminPanel /></PrivateRoute>} />
               <Route path="*" element={<Navigate to="/" />} />
+			  <Route path="/" element={<PrivateRoute><SelectionPage /></PrivateRoute>} />
+<Route path="/gameplay" element={<PrivateRoute><GameplayPage /></PrivateRoute>} />
             </Routes>
           </div>
         </Router>

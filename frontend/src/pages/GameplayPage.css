@@ -1,0 +1,240 @@
+/* GameplayPage.css */
+.gameplay-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+}
+
+.gameplay-header {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #ffd700;
+}
+
+.gameplay-header h1 {
+  font-size: 1.3rem;
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.header-stats {
+  display: flex;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 15px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  color: #ffd700;
+}
+
+.gameplay-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+
+.board-section {
+  flex: 0.6;
+  min-width: 280px;
+}
+
+.gameplay-board {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 15px;
+  padding: 15px;
+}
+
+.board-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  text-align: center;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.board-row div {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  border: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.board-row div.called {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #1a1a2e;
+}
+
+.board-footer {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.cartelas-section {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.cartela-card {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.cartela-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cartela-header span {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #1a1a2e;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.mode {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  border: none;
+  cursor: pointer;
+}
+
+.mode.auto {
+  background: #10b981;
+  color: white;
+}
+
+.mode.manual {
+  background: #3b82f6;
+  color: white;
+}
+
+.bingo {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border: none;
+  padding: 3px 12px;
+  border-radius: 20px;
+  color: white;
+  font-weight: bold;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.cartela-grid {
+  width: 100%;
+}
+
+.grid-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  text-align: center;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 6px;
+  font-size: 0.6rem;
+}
+
+.grid-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.6rem;
+  cursor: pointer;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.cell.marked {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #1a1a2e;
+}
+
+.cell.free {
+  background: #10b981;
+  color: white;
+  cursor: default;
+}
+
+.gameplay-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #0a0a0f, #1a1a2e);
+}
+
+@media (max-width: 800px) {
+  .gameplay-container {
+    flex-direction: column;
+  }
+  
+  .board-section {
+    flex: auto;
+  }
+  
+  .cartelas-section {
+    flex: auto;
+  }
+  
+  .gameplay-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .board-row div {
+    font-size: 0.55rem;
+  }
+  
+  .cell {
+    font-size: 0.55rem;
+  }
+}

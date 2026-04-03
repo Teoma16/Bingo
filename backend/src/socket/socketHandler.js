@@ -751,8 +751,8 @@ async function startGame(gameId, io) {
     
     activeGames.set(gameId, gameState);
     
-    // Notify all players that game is starting
-    io.to(`game_${gameId}`).emit('game_starting', { message: 'Game is starting!' });
+  // When game starts, emit to all players
+io.to(`game_${gameId}`).emit('game_starting', { gameId });
     
     // Start calling numbers
     // Start calling numbers
