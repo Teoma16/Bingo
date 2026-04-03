@@ -814,7 +814,7 @@
   .numbers-grid {
     grid-template-columns: repeat(10, 1fr);
     gap: 5px;
-    max-height: 300px;
+    max-height: 500px;
   }
   
   .cartelas-preview-section {
