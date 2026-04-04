@@ -17,7 +17,6 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
     setSuccess('');
     setLoading(true);
 
-    // Validate amount
     const depositAmount = parseFloat(amount);
     if (isNaN(depositAmount) || depositAmount <= 0) {
       setError('Please enter a valid amount');
@@ -25,7 +24,6 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
-    // Validate SMS text
     if (!smsText.trim()) {
       setError('Please enter the SMS text from Telebirr');
       setLoading(false);
@@ -40,9 +38,7 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
           amount: depositAmount,
           transactionText: smsText
         },
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       if (response.data.success) {
@@ -66,8 +62,8 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="deposit-modal-overlay" onClick={onClose}>
-      <div className="deposit-modal glass-card" onClick={(e) => e.stopPropagation()}>
-        <button className="deposit-modal-close" onClick={onClose}>×</button>
+      <div className="deposit-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>×</button>
         <h2>💰 Deposit Money</h2>
         
         <div className="telebirr-info">
@@ -116,7 +112,6 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
             <li>Deposits are processed manually by admin</li>
             <li>Processing time: 5-30 minutes</li>
             <li>Minimum deposit: 10 Birr</li>
-            <li>Make sure to paste the exact SMS text</li>
           </ul>
         </div>
       </div>

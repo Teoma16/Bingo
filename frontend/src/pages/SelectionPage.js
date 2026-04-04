@@ -245,10 +245,10 @@ const fetchCartelaPreview = async (number) => {
           </div>
         ) : (
           <div className="waiting-display">
-            <span>⏳ Waiting for players... ({players.length}/2 players)</span>
+            <span>⏳ Waiting for players {/*({players.length}/2 players)*/}</span>
           </div>
         )}
-        <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
+        <div className="reward-display">🏆 ደራሽ : {calculateReward()} Birr</div>
       </div>
 
       {/* Selection Area */}
@@ -274,7 +274,7 @@ const fetchCartelaPreview = async (number) => {
             );
           })}
         </div>
-</div>
+
         {/* Cartela Preview Section - Shows ALL selected cartelas side by side */}
         {previewCartelas.length > 0 && (
           <div className="cartelas-preview-section">
@@ -283,8 +283,9 @@ const fetchCartelaPreview = async (number) => {
               {previewCartelas.map((preview, index) => (
                 <div key={preview.number} className="cartela-preview-card">
                   <div className="preview-number">Lucky #{preview.number}</div>
+				    
                   <div className="preview-card-content">
-                    <div className="preview-header-row">B I N G O</div>
+				   <div className="preview-header-row">B I N G O</div>
                     {[0, 1, 2, 3, 4].map(row => (
                       <div key={row} className="preview-row">
                         {[0, 1, 2, 3, 4].map(col => {
@@ -298,23 +299,23 @@ const fetchCartelaPreview = async (number) => {
                       </div>
                     ))}
                   </div>
-                  <button 
+				  {/* <button 
                     className="remove-cartela-btn"
                     onClick={() => handleNumberClick(preview.number)}
                   >
                     Remove
-                  </button>
+                  </button>*/}
                 </div>
               ))}
-           
+            </div>
             <div className="preview-note">
-              ✓ Click on a selected number or press Remove to deselect
+              የመረጡትን ካርቴላ መተው ከፈለጉ የመረጡት ቁጠር ላይ ደግመው ይጫኑ
             </div>
           </div>
         )}
       </div>
 
-      {/* Footer Navigation */}
+     
       <nav className="bottom-nav">
         <div className="nav-item" onClick={() => setShowDepositModal(true)}>
           <span className="nav-icon">💰</span>
@@ -328,7 +329,7 @@ const fetchCartelaPreview = async (number) => {
           <span className="nav-icon">📜</span>
           <span className="nav-label">History</span>
         </div>
-        <div className="nav-item" onClick={() => window.open('https://t.me/YourBingoBot', '_blank')}>
+        <div className="nav-item" onClick={() => window.open('https://t.me/luckybingowinnerBot', '_blank')}>
           <span className="nav-icon">📞</span>
           <span className="nav-label">Support</span>
         </div>
