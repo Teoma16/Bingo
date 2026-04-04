@@ -222,18 +222,15 @@ useEffect(() => {
   // Socket events
 // Update socket events
 // Socket events
+// Socket events
 useEffect(() => {
   if (!socket) return;
   
   // Join the game room
-  const joinGameRoom = () => {
-    if (game?.id) {
-      console.log('Joining game room:', game.id);
-      socket.emit('join_game_room', { gameId: game.id });
-    }
-  };
-  
-  joinGameRoom();
+  if (game?.id) {
+    console.log('Joining game room:', game.id);
+    socket.emit('join_game_room', { gameId: game.id });
+  }
   
   // Listen for countdown events
   const unsubscribeCountdown = on('countdown', (data) => {
@@ -260,21 +257,25 @@ useEffect(() => {
     navigate('/gameplay');
   });
   
-  // Listen for game updates (player count, pool, players)
+  // Listen for game updates
   const unsubscribeGameUpdate = on('game_update', (data) => {
     console.log('Game update received:', data);
     fetchData();
     fetchTakenNumbers();
   });
   
-  // Listen for numbers taken by other players
+  // Listen for numbers taken by other players - THIS IS KEY
   const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
     console.log('Numbers taken event received:', data);
-    fetchTakenNumbers();
+    // Immediately update taken numbers
+    setTakenNumbers(prev => {
+      const newTaken = [...new Set([...prev, ...data.numbers])];
+      return newTaken;
+    });
     fetchData();
   });
   
-  // Listen for player joined/left
+  // Listen for player update
   const unsubscribePlayerUpdate = on('player_update', (data) => {
     console.log('Player update received:', data);
     fetchData();
@@ -291,7 +292,32 @@ useEffect(() => {
     unsubscribePlayerUpdate();
   };
 }, [socket, game?.id]);
-
+// Add this useEffect to monitor socket connection
+useEffect(() => {
+  if (!socket) return;
+  
+  const handleConnect = () => {
+    console.log('Socket connected');
+    // Re-join game room on reconnect
+    if (game?.id) {
+      socket.emit('join_game_room', { gameId: game.id });
+      fetchData();
+      fetchTakenNumbers();
+    }
+  };
+  
+  const handleDisconnect = () => {
+    console.log('Socket disconnected');
+  };
+  
+  socket.on('connect', handleConnect);
+  socket.on('disconnect', handleDisconnect);
+  
+  return () => {
+    socket.off('connect', handleConnect);
+    socket.off('disconnect', handleDisconnect);
+  };
+}, [socket, game?.id]);
   if (loading) {
     return (
       <div className="selection-loading">

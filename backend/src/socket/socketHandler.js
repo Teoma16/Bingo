@@ -76,51 +76,53 @@ socket.on('player_selection_changed', async (data) => {
 });
 
   // START COUNTDOWN EVENT
-  socket.on('start_countdown', async (data) => {
-    const { gameId } = data;
-    
-    // Clear any existing countdown for this game
-    if (activeCountdowns.has(gameId)) {
-      clearInterval(activeCountdowns.get(gameId));
+// START COUNTDOWN EVENT
+socket.on('start_countdown', async (data) => {
+  const { gameId } = data;
+  
+  console.log(`🎯 Starting countdown for game ${gameId}`);
+  
+  // Clear any existing countdown for this game
+  if (activeCountdowns.has(gameId)) {
+    clearInterval(activeCountdowns.get(gameId));
+    activeCountdowns.delete(gameId);
+  }
+  
+  let countdown = 40;
+  
+  // Emit countdown start
+  io.to(`game_${gameId}`).emit('countdown_start', { seconds: countdown });
+  
+  const interval = setInterval(async () => {
+    if (countdown <= 0) {
+      clearInterval(interval);
       activeCountdowns.delete(gameId);
+      
+      // Check if still enough players
+      const playerCount = await pool.query(
+        'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
+        [gameId]
+      );
+      
+      if (playerCount.rows[0].count >= 2) {
+        console.log(`🎮 Game ${gameId} starting now!`);
+        await startGame(gameId, io);
+      } else {
+        console.log(`❌ Countdown cancelled - not enough players`);
+        io.to(`game_${gameId}`).emit('countdown_cancelled', { 
+          message: 'Not enough players. Waiting for more...' 
+        });
+      }
+      return;
     }
     
-    console.log(`Starting countdown for game ${gameId}`);
-    
-    let countdown = 40;
-    
-    // First emit the start event
-    io.to(`game_${gameId}`).emit('countdown_start', { seconds: countdown });
-    
-    const interval = setInterval(async () => {
-      if (countdown <= 0) {
-        clearInterval(interval);
-        activeCountdowns.delete(gameId);
-        
-        // Check if still enough players
-        const playerCount = await pool.query(
-          'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
-          [gameId]
-        );
-        
-        if (playerCount.rows[0].count >= 2) {
-          // Start the game
-          await startGame(gameId, io);
-        } else {
-          // Not enough players, cancel countdown
-          io.to(`game_${gameId}`).emit('countdown_cancelled', { 
-            message: 'Not enough players. Waiting for more...' 
-          });
-        }
-        return;
-      }
-      
-      io.to(`game_${gameId}`).emit('countdown', { seconds: countdown });
-      countdown--;
-    }, 1000);
-    
-    activeCountdowns.set(gameId, interval);
-  });
+    console.log(`⏰ Countdown: ${countdown}s for game ${gameId}`);
+    io.to(`game_${gameId}`).emit('countdown', { seconds: countdown });
+    countdown--;
+  }, 1000);
+  
+  activeCountdowns.set(gameId, interval);
+});
   
   // Join game room
   socket.on('join_game', async (data) => {

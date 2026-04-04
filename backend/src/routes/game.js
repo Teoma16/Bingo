@@ -233,33 +233,23 @@ router.post('/update-selection', authenticate, async (req, res) => {
     
     // Broadcast update to specific game room - SINGLE DECLARATION
     const io = require('../server').io;
-    if (io) {
-      console.log(`📢 Broadcasting game_update to game_${game.id}: players=${newPlayerCount}, pool=${newPool}`);
-      
-      // Broadcast taken numbers to all players in the game room
-      io.to(`game_${game.id}`).emit('numbers_taken', {
-        numbers: luckyNumbers,
-        userId: req.userId
-      });
-      
-      // Broadcast game update
-      io.to(`game_${game.id}`).emit('game_update', { 
-        gameId: game.id, 
-        playerCount: newPlayerCount, 
-        pool: newPool,
-        players: updatedPlayers
-      });
-      
-      // Start countdown if we have at least 2 players and game is waiting
-      if (newPlayerCount >= 2 && game.status === 'waiting') {
-        console.log(`✅ Starting countdown for game ${game.id} with ${newPlayerCount} players`);
-        io.to(`game_${game.id}`).emit('start_countdown', { gameId: game.id });
-      } else if (newPlayerCount < 2) {
-        // Cancel countdown if player count drops below 2
-        console.log(`❌ Cancelling countdown for game ${game.id} - only ${newPlayerCount} players`);
-        io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
-      }
-    }
+ const io = require('../server').io;
+if (io) {
+  // Broadcast taken numbers to ALL players in the game room
+  io.to(`game_${game.id}`).emit('numbers_taken', {
+    numbers: allCartelas.rows.map(c => c.lucky_number),
+    userId: req.userId,
+    action: 'update'
+  });
+  
+  // Also broadcast game update
+  io.to(`game_${game.id}`).emit('game_update', { 
+    gameId: game.id, 
+    playerCount: newPlayerCount, 
+    pool: newPool,
+    players: updatedPlayers
+  });
+}
     
     res.json({
       success: true,
