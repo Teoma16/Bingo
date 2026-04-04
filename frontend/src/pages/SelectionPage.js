@@ -26,10 +26,12 @@ function SelectionPage() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [countdownActive, setCountdownActive] = useState(false);
   
   const API_URL = '/api';
   const ENTRY_FEE = 10;
   const WINNER_PERCENTAGE = 78.75;
+
 
   const fetchData = async () => {
     try {
@@ -108,7 +110,17 @@ const fetchCartelaPreview = async (number) => {
 
   // Handle number click - toggle selection immediately
   const handleNumberClick = async (number) => {
-    if (countdown !== null && countdown > 0) {
+    
+	  if (countdownActive) {
+    alert('Game is about to start! Cannot change selection.');
+    return;
+  }
+  
+  if (countdown !== null && countdown > 0) {
+    alert('Game starting soon! Cannot change selection.');
+    return;
+  }
+	if (countdown !== null && countdown > 0) {
       alert('Game starting soon! Cannot change selection.');
       return;
     }
@@ -133,25 +145,34 @@ const fetchCartelaPreview = async (number) => {
     await updateSelection([...selectedNumbers, number]);
   };
 
-  const updateSelection = async (numbers) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/game/update-selection`,
-        { luckyNumbers: numbers },
-        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
-      setSelectedNumbers(numbers);
-      fetchData();
-      fetchBalance();
-      
-      // Update preview cartelas based on selected numbers
-      await updatePreviewCartelas(numbers);
-    } catch (error) {
-      console.error('Update error:', error);
-      alert(error.response?.data?.error || 'Update failed');
+ const updateSelection = async (numbers) => {
+  try {
+    const token = localStorage.getItem('token');
+    await axios.post(
+      `${API_URL}/game/update-selection`,
+      { luckyNumbers: numbers },
+      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    );
+    setSelectedNumbers(numbers);
+    fetchData();
+    fetchBalance();
+    
+    // Update preview cartelas based on selected numbers
+    await updatePreviewCartelas(numbers);
+    
+    // Emit selection change to other players
+    if (socket && game?.id) {
+      socket.emit('player_selection_changed', {
+        gameId: game.id,
+        userId: user?.id,
+        selectedNumbers: numbers
+      });
     }
-  };
+  } catch (error) {
+    console.error('Update error:', error);
+    alert(error.response?.data?.error || 'Update failed');
+  }
+};
 
   // Update preview cartelas whenever selected numbers change
   const updatePreviewCartelas = async (numbers) => {
@@ -190,31 +211,86 @@ const fetchCartelaPreview = async (number) => {
       setPreviewCartelas([]);
     }
   }, [selectedNumbers]);
-
+// Add this useEffect to join the game room
+useEffect(() => {
+  if (!socket || !game?.id) return;
+  
+  // Join the game room for real-time updates
+  socket.emit('join_game_room', { gameId: game.id });
+  
+}, [socket, game?.id]);
   // Socket events
-  useEffect(() => {
-    if (!socket) return;
-    
-    const unsubscribeCountdown = on('countdown', (data) => {
-      console.log('Countdown received:', data.seconds);
-      setCountdown(data.seconds);
-    });
-    
-    const unsubscribeGameStart = on('game_starting', () => {
-      navigate('/gameplay');
-    });
-    
-    const unsubscribeGameUpdate = on('game_update', (data) => {
-      fetchData();
-      fetchTakenNumbers();
-    });
-    
-    return () => {
-      unsubscribeCountdown();
-      unsubscribeGameStart();
-      unsubscribeGameUpdate();
-    };
-  }, [socket]);
+// Update socket events
+// Socket events
+useEffect(() => {
+  if (!socket) return;
+  
+  // Join the game room
+  const joinGameRoom = () => {
+    if (game?.id) {
+      console.log('Joining game room:', game.id);
+      socket.emit('join_game_room', { gameId: game.id });
+    }
+  };
+  
+  joinGameRoom();
+  
+  // Listen for countdown events
+  const unsubscribeCountdown = on('countdown', (data) => {
+    console.log('Countdown received:', data.seconds);
+    setCountdown(data.seconds);
+    setCountdownActive(true);
+  });
+  
+  const unsubscribeCountdownStart = on('countdown_start', (data) => {
+    console.log('Countdown started:', data);
+    setCountdown(data.seconds);
+    setCountdownActive(true);
+  });
+  
+  const unsubscribeCountdownCancelled = on('countdown_cancelled', (data) => {
+    console.log('Countdown cancelled:', data);
+    setCountdown(null);
+    setCountdownActive(false);
+  });
+  
+  // Listen for game start
+  const unsubscribeGameStart = on('game_starting', () => {
+    console.log('Game starting, navigating to gameplay');
+    navigate('/gameplay');
+  });
+  
+  // Listen for game updates (player count, pool, players)
+  const unsubscribeGameUpdate = on('game_update', (data) => {
+    console.log('Game update received:', data);
+    fetchData();
+    fetchTakenNumbers();
+  });
+  
+  // Listen for numbers taken by other players
+  const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
+    console.log('Numbers taken event received:', data);
+    fetchTakenNumbers();
+    fetchData();
+  });
+  
+  // Listen for player joined/left
+  const unsubscribePlayerUpdate = on('player_update', (data) => {
+    console.log('Player update received:', data);
+    fetchData();
+    fetchTakenNumbers();
+  });
+  
+  return () => {
+    unsubscribeCountdown();
+    unsubscribeCountdownStart();
+    unsubscribeCountdownCancelled();
+    unsubscribeGameStart();
+    unsubscribeGameUpdate();
+    unsubscribeNumbersTaken();
+    unsubscribePlayerUpdate();
+  };
+}, [socket, game?.id]);
 
   if (loading) {
     return (
@@ -237,19 +313,19 @@ const fetchCartelaPreview = async (number) => {
       </header>
 
       {/* Status Bar */}
-      <div className="selection-status">
-        {countdown !== null && countdown > 0 ? (
-          <div className="countdown-display">
-            <span className="countdown-label">⏰ Game starts in:</span>
-            <span className="countdown-number">{countdown}s</span>
-          </div>
-        ) : (
-          <div className="waiting-display">
-            <span>⏳ Waiting for players {/*({players.length}/2 players)*/}</span>
-          </div>
-        )}
-        <div className="reward-display">🏆 ደራሽ : {calculateReward()} Birr</div>
-      </div>
+<div className="selection-status">
+  {countdown !== null && countdown > 0 ? (
+    <div className="countdown-display">
+      <span className="countdown-label">⏰ Game starts in:</span>
+      <span className="countdown-number">{countdown}s</span>
+    </div>
+  ) : (
+    <div className="waiting-display">
+      <span>⏳ Waiting for players... ({players.length}/2 players)</span>
+    </div>
+  )}
+  <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
+</div>
 
       {/* Selection Area */}
       <div className="selection-area">
@@ -263,14 +339,14 @@ const fetchCartelaPreview = async (number) => {
             const isSelected = selectedNumbers.includes(number);
             const isTaken = takenNumbers.includes(number) && !isSelected;
             return (
-              <button
-                key={number}
-                className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
-                onClick={() => handleNumberClick(number)}
-                disabled={isTaken || (countdown !== null && countdown > 0)}
-              >
-                {number}
-              </button>
+             <button
+  key={number}
+  className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
+  onClick={() => handleNumberClick(number)}
+  disabled={isTaken || countdownActive}
+>
+  {number}
+</button>
             );
           })}
         </div>

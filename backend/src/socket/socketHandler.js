@@ -5,7 +5,7 @@ const { verifyToken } = require('../utils/helpers');
 const activeGames = new Map();
 const playerSockets = new Map();
 const gameTimers = new Map();
-const gameCountdowns = new Map();
+const activeCountdowns = new Map(); // Track active countdowns
 
 const socketHandler = (socket, io) => {
   console.log('New connection:', socket.id);
@@ -46,29 +46,80 @@ const socketHandler = (socket, io) => {
       socket.emit('error', { message: 'Authentication failed' });
     }
   });
+  // Join specific game room
+socket.on('join_game_room', (data) => {
+  const { gameId } = data;
+  if (gameId) {
+    socket.join(`game_${gameId}`);
+    console.log(`Socket ${socket.id} joined game room ${gameId}`);
+  }
+});
+
+// Add this inside socket.on('connection')
+// Broadcast when a player selects/deselects a number
+socket.on('player_selection_changed', async (data) => {
+  const { gameId, userId, selectedNumbers } = data;
   
-  // START COUNTDOWN EVENT - MOVED TO CORRECT PLACE
+  console.log(`Player ${userId} changed selection in game ${gameId}:`, selectedNumbers);
+  
+  // Broadcast to all players in the game room
+  io.to(`game_${gameId}`).emit('numbers_taken', {
+    numbers: selectedNumbers,
+    userId: userId
+  });
+  
+  // Also emit game update to refresh everything
+  io.to(`game_${gameId}`).emit('game_update', {
+    gameId: gameId,
+    timestamp: Date.now()
+  });
+});
+
+  // START COUNTDOWN EVENT
   socket.on('start_countdown', async (data) => {
     const { gameId } = data;
     
-    if (gameCountdowns.has(gameId)) return;
+    // Clear any existing countdown for this game
+    if (activeCountdowns.has(gameId)) {
+      clearInterval(activeCountdowns.get(gameId));
+      activeCountdowns.delete(gameId);
+    }
     
     console.log(`Starting countdown for game ${gameId}`);
     
     let countdown = 40;
     
-    const interval = setInterval(() => {
+    // First emit the start event
+    io.to(`game_${gameId}`).emit('countdown_start', { seconds: countdown });
+    
+    const interval = setInterval(async () => {
+      if (countdown <= 0) {
+        clearInterval(interval);
+        activeCountdowns.delete(gameId);
+        
+        // Check if still enough players
+        const playerCount = await pool.query(
+          'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
+          [gameId]
+        );
+        
+        if (playerCount.rows[0].count >= 2) {
+          // Start the game
+          await startGame(gameId, io);
+        } else {
+          // Not enough players, cancel countdown
+          io.to(`game_${gameId}`).emit('countdown_cancelled', { 
+            message: 'Not enough players. Waiting for more...' 
+          });
+        }
+        return;
+      }
+      
       io.to(`game_${gameId}`).emit('countdown', { seconds: countdown });
       countdown--;
-      
-      if (countdown < 0) {
-        clearInterval(interval);
-        gameCountdowns.delete(gameId);
-        startGame(gameId, io);
-      }
     }, 1000);
     
-    gameCountdowns.set(gameId, interval);
+    activeCountdowns.set(gameId, interval);
   });
   
   // Join game room
@@ -566,11 +617,6 @@ async function checkForWinners(gameId, gameState, io) {
   } catch (error) {
     console.error('Error checking winners:', error);
   }
-}
-
-// Award fast win bonus
-async function awardFastWinBonus(userId, gameId, entryFee, io) {
-  // ... keep existing code ...
 }
 
 // Start game countdown

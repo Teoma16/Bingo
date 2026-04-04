@@ -1,7 +1,7 @@
 /* SelectionPage.css */
 .selection-page {
   min-height: 100vh;
-  padding: 20px;
+  padding: 5px;
   padding-bottom: 80px;
   position: relative;
   overflow: hidden;
@@ -716,7 +716,7 @@
   display: flex;
   flex-direction: row;
   gap: 20px;
-  /*justify-content: center;*/
+  justify-content: center;
   flex-wrap: wrap;
   /*  max-height: 350px;
   overflow-y: auto;*/

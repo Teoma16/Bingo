@@ -20,6 +20,20 @@ const getFixedCartela = async (luckyNumber) => {
   }
 };
 
+// Helper function to get players list for a game
+async function getPlayersList(gameId) {
+  const players = await pool.query(
+    `SELECT DISTINCT u.id, u.username, u.telegram_id, 
+            array_agg(pc.lucky_number) as lucky_numbers
+     FROM player_cartelas pc
+     JOIN users u ON u.id = pc.user_id
+     WHERE pc.game_id = $1
+     GROUP BY u.id, u.username, u.telegram_id`,
+    [gameId]
+  );
+  return players.rows;
+}
+
 // Middleware
 const authenticate = async (req, res, next) => {
   try {
@@ -38,7 +52,6 @@ const authenticate = async (req, res, next) => {
 // Get current game state
 router.get('/current', authenticate, async (req, res) => {
   try {
-    // Get or create waiting game for room 1
     let gameResult = await pool.query(
       `SELECT * FROM games WHERE room_id = 1 AND status IN ('waiting', 'active')
        ORDER BY created_at DESC LIMIT 1`,
@@ -58,13 +71,11 @@ router.get('/current', authenticate, async (req, res) => {
       game = gameResult.rows[0];
     }
     
-    // Get user's cartelas
     const cartelas = await pool.query(
       `SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2`,
       [game.id, req.userId]
     );
     
-    // Get all players
     const players = await pool.query(
       `SELECT DISTINCT u.id, u.username FROM player_cartelas pc
        JOIN users u ON u.id = pc.user_id
@@ -84,7 +95,6 @@ router.get('/current', authenticate, async (req, res) => {
   }
 });
 
-// Update selection (add/remove cartelas)
 // Update selection (add/remove cartelas)
 router.post('/update-selection', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
@@ -218,14 +228,36 @@ router.post('/update-selection', authenticate, async (req, res) => {
       [newPool, newPlayerCount, game.id]
     );
     
-    // Broadcast update to all clients
+    // Get updated players list
+    const updatedPlayers = await getPlayersList(game.id);
+    
+    // Broadcast update to specific game room - SINGLE DECLARATION
     const io = require('../server').io;
     if (io) {
-      io.emit('game_update', { gameId: game.id, playerCount: newPlayerCount, pool: newPool });
+      console.log(`📢 Broadcasting game_update to game_${game.id}: players=${newPlayerCount}, pool=${newPool}`);
+      
+      // Broadcast taken numbers to all players in the game room
+      io.to(`game_${game.id}`).emit('numbers_taken', {
+        numbers: luckyNumbers,
+        userId: req.userId
+      });
+      
+      // Broadcast game update
+      io.to(`game_${game.id}`).emit('game_update', { 
+        gameId: game.id, 
+        playerCount: newPlayerCount, 
+        pool: newPool,
+        players: updatedPlayers
+      });
       
       // Start countdown if we have at least 2 players and game is waiting
       if (newPlayerCount >= 2 && game.status === 'waiting') {
-        io.emit('start_countdown', { gameId: game.id });
+        console.log(`✅ Starting countdown for game ${game.id} with ${newPlayerCount} players`);
+        io.to(`game_${game.id}`).emit('start_countdown', { gameId: game.id });
+      } else if (newPlayerCount < 2) {
+        // Cancel countdown if player count drops below 2
+        console.log(`❌ Cancelling countdown for game ${game.id} - only ${newPlayerCount} players`);
+        io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
       }
     }
     
@@ -256,14 +288,12 @@ router.get('/:gameId/taken-numbers', authenticate, async (req, res) => {
 });
 
 // Generate cartela preview
-// Generate cartela for preview (uses fixed cartelas from database)
 router.post('/generate-cartela', authenticate, async (req, res) => {
   const { luckyNumber } = req.body;
   
   console.log('Generate cartela preview for lucky number:', luckyNumber);
   
   try {
-    // Get fixed cartela from database - THIS IS THE KEY
     const result = await pool.query(
       'SELECT cartela_data FROM fixed_cartelas WHERE lucky_number = $1',
       [luckyNumber]
@@ -272,13 +302,11 @@ router.post('/generate-cartela', authenticate, async (req, res) => {
     let cartela;
     if (result.rows.length > 0) {
       cartela = result.rows[0].cartela_data;
-      // Parse if it's string
       if (typeof cartela === 'string') {
         cartela = JSON.parse(cartela);
       }
       console.log('Found fixed cartela for number', luckyNumber);
     } else {
-      // Fallback: generate cartela (should not happen if fixed_cartelas is populated)
       cartela = generateCartela();
       console.log('Using generated cartela for number', luckyNumber);
     }
@@ -336,9 +364,24 @@ router.post('/leave', authenticate, async (req, res) => {
           [newPool, newPlayerCount, game.id]
         );
         
+        const updatedPlayers = await getPlayersList(game.id);
+        
         const io = require('../server').io;
         if (io) {
-          io.emit('game_update', { gameId: game.id, playerCount: newPlayerCount, pool: newPool });
+          console.log(`📢 Broadcasting game_update after leave to game_${game.id}: players=${newPlayerCount}`);
+          
+          io.to(`game_${game.id}`).emit('game_update', { 
+            gameId: game.id, 
+            playerCount: newPlayerCount, 
+            pool: newPool,
+            players: updatedPlayers
+          });
+          
+          // Cancel countdown if player count drops below 2
+          if (newPlayerCount < 2) {
+            console.log(`❌ Cancelling countdown - only ${newPlayerCount} players left`);
+            io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
+          }
         }
       }
     }
