@@ -275,7 +275,6 @@ const fetchCartelaPreview = async (number) => {
           })}
         </div>
 </div>
-      <div className="selection-area">
         {/* Cartela Preview Section - Shows ALL selected cartelas side by side */}
         {previewCartelas.length > 0 && (
           <div className="cartelas-preview-section">
@@ -307,7 +306,7 @@ const fetchCartelaPreview = async (number) => {
                   </button>
                 </div>
               ))}
-            </div>
+           
             <div className="preview-note">
               ✓ Click on a selected number or press Remove to deselect
             </div>
