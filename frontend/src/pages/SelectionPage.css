@@ -350,7 +350,7 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
+/*
 @media (max-width: 768px) {
   .numbers-grid {
     grid-template-columns: repeat(10, 1fr);
@@ -365,7 +365,7 @@
     flex-direction: column;
     text-align: center;
   }
-}
+}*/
 .countdown-display {
   background: linear-gradient(135deg, #dc2626, #991b1b);
   padding: 6px 20px;
@@ -803,6 +803,7 @@
   font-size: 0.7rem;
   color: #10b981;
 }
+/*
 @media (max-width: 768px) {
   .selection-page {
     padding-bottom: 70px;
@@ -818,7 +819,7 @@
     grid-template-columns: repeat(10, 1fr);
     gap: 5px;
    max-height: 500px;
-  }*/
+  }
   
   .cartelas-preview-section {
     max-height: 350px;
@@ -857,30 +858,4 @@
   }
 }
 
-@media (max-width: 480px) {
-  .selection-area {
-    max-height: calc(100vh - 160px);
-  }
-  
-  .cartela-preview-card {
-    min-width: 150px;
-  }
-  
-  .preview-cell {
-    font-size: 0.5rem;
-  }
-  
-  .remove-cartela-btn {
-    font-size: 0.55rem;
-    padding: 3px;
-  }
-}
-
-/* Force modals to top */
-.deposit-modal-overlay, .withdrawal-modal-overlay {
-  z-index: 9999 !important;
-}
-
-.deposit-modal, .withdrawal-modal {
-  z-index: 10000 !important;
-}
+*/
