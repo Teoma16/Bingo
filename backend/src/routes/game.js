@@ -96,6 +96,7 @@ router.get('/current', authenticate, async (req, res) => {
 });
 
 // Update selection (add/remove cartelas)
+// Update selection (add/remove cartelas)
 router.post('/update-selection', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
   const ENTRY_FEE = 10;
@@ -231,25 +232,34 @@ router.post('/update-selection', authenticate, async (req, res) => {
     // Get updated players list
     const updatedPlayers = await getPlayersList(game.id);
     
-    // Broadcast update to specific game room - SINGLE DECLARATION
+    // SINGLE BROADCAST - ONLY ONE io DECLARATION
     const io = require('../server').io;
- const io = require('../server').io;
-if (io) {
-  // Broadcast taken numbers to ALL players in the game room
-  io.to(`game_${game.id}`).emit('numbers_taken', {
-    numbers: allCartelas.rows.map(c => c.lucky_number),
-    userId: req.userId,
-    action: 'update'
-  });
-  
-  // Also broadcast game update
-  io.to(`game_${game.id}`).emit('game_update', { 
-    gameId: game.id, 
-    playerCount: newPlayerCount, 
-    pool: newPool,
-    players: updatedPlayers
-  });
-}
+    if (io) {
+      console.log(`📢 Broadcasting to game_${game.id}: players=${newPlayerCount}, pool=${newPool}`);
+      
+      // Broadcast taken numbers to all players
+      io.to(`game_${game.id}`).emit('numbers_taken', {
+        numbers: allCartelas.rows.map(c => c.lucky_number),
+        userId: req.userId
+      });
+      
+      // Broadcast game update
+      io.to(`game_${game.id}`).emit('game_update', { 
+        gameId: game.id, 
+        playerCount: newPlayerCount, 
+        pool: newPool,
+        players: updatedPlayers
+      });
+      
+      // Start countdown if we have at least 2 players
+      if (newPlayerCount >= 2 && game.status === 'waiting') {
+        console.log(`✅ Starting countdown for game ${game.id}`);
+        io.to(`game_${game.id}`).emit('start_countdown', { gameId: game.id });
+      } else if (newPlayerCount < 2) {
+        console.log(`❌ Cancelling countdown - only ${newPlayerCount} players`);
+        io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
+      }
+    }
     
     res.json({
       success: true,
