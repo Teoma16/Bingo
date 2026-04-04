@@ -96,13 +96,11 @@ router.get('/current', authenticate, async (req, res) => {
 });
 
 // Update selection (add/remove cartelas)
-// Update selection (add/remove cartelas)
 router.post('/update-selection', authenticate, async (req, res) => {
   const { luckyNumbers = [] } = req.body;
   const ENTRY_FEE = 10;
   
   try {
-    // Check for active game
     const activeGame = await pool.query(
       `SELECT * FROM games WHERE room_id = 1 AND status = 'active'`,
       []
@@ -112,7 +110,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Game already in progress' });
     }
     
-    // Get or create waiting game
     let gameResult = await pool.query(
       `SELECT * FROM games WHERE room_id = 1 AND status = 'waiting'
        ORDER BY created_at DESC LIMIT 1`,
@@ -132,7 +129,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       game = gameResult.rows[0];
     }
     
-    // Get current cartelas
     const currentCartelas = await pool.query(
       'SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2',
       [game.id, req.userId]
@@ -142,7 +138,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
     const numbersToAdd = luckyNumbers.filter(n => !currentNumbers.includes(n));
     const numbersToRemove = currentNumbers.filter(n => !luckyNumbers.includes(n));
     
-    // Check if numbers to add are available
     if (numbersToAdd.length > 0) {
       const takenNumbers = await pool.query(
         'SELECT lucky_number FROM player_cartelas WHERE game_id = $1 AND lucky_number = ANY($2::int[])',
@@ -155,7 +150,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       }
     }
     
-    // Check balance for new cartelas
     const userResult = await pool.query(
       'SELECT wallet_balance FROM users WHERE id = $1',
       [req.userId]
@@ -167,7 +161,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
     
-    // Remove cartelas and refund
     if (numbersToRemove.length > 0) {
       await pool.query(
         'DELETE FROM player_cartelas WHERE game_id = $1 AND user_id = $2 AND lucky_number = ANY($3::int[])',
@@ -180,7 +173,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       );
     }
     
-    // Add new cartelas
     for (const luckyNumber of numbersToAdd) {
       const cartelaData = await getFixedCartela(luckyNumber);
       let cartelaDataForInsert;
@@ -197,7 +189,6 @@ router.post('/update-selection', authenticate, async (req, res) => {
       );
     }
     
-    // Deduct cost
     if (additionalCost > 0) {
       await pool.query(
         'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2',
@@ -205,13 +196,11 @@ router.post('/update-selection', authenticate, async (req, res) => {
       );
     }
     
-    // Get all cartelas after changes
     const allCartelas = await pool.query(
       'SELECT * FROM player_cartelas WHERE game_id = $1 AND user_id = $2',
       [game.id, req.userId]
     );
     
-    // Update game pool and player count
     const playerCountResult = await pool.query(
       'SELECT COUNT(DISTINCT user_id) as count FROM player_cartelas WHERE game_id = $1',
       [game.id]
@@ -229,17 +218,23 @@ router.post('/update-selection', authenticate, async (req, res) => {
       [newPool, newPlayerCount, game.id]
     );
     
-    // Get updated players list
     const updatedPlayers = await getPlayersList(game.id);
     
-    // SINGLE BROADCAST - ONLY ONE io DECLARATION
+    // Get all taken numbers for this game
+    const takenNumbersResult = await pool.query(
+      'SELECT lucky_number FROM player_cartelas WHERE game_id = $1',
+      [game.id]
+    );
+    const allTakenNumbers = takenNumbersResult.rows.map(r => r.lucky_number);
+    
+    // Broadcast to game room
     const io = require('../server').io;
     if (io) {
-      console.log(`📢 Broadcasting to game_${game.id}: players=${newPlayerCount}, pool=${newPool}`);
+      console.log(`📢 Broadcasting to game_${game.id}: players=${newPlayerCount}, taken=${allTakenNumbers.length}`);
       
-      // Broadcast taken numbers to all players
+      // Broadcast taken numbers to ALL players
       io.to(`game_${game.id}`).emit('numbers_taken', {
-        numbers: allCartelas.rows.map(c => c.lucky_number),
+        numbers: allTakenNumbers,
         userId: req.userId
       });
       
@@ -248,10 +243,11 @@ router.post('/update-selection', authenticate, async (req, res) => {
         gameId: game.id, 
         playerCount: newPlayerCount, 
         pool: newPool,
-        players: updatedPlayers
+        players: updatedPlayers,
+        takenNumbers: allTakenNumbers
       });
       
-      // Start countdown if we have at least 2 players
+      // Start countdown if 2+ players
       if (newPlayerCount >= 2 && game.status === 'waiting') {
         console.log(`✅ Starting countdown for game ${game.id}`);
         io.to(`game_${game.id}`).emit('start_countdown', { gameId: game.id });
@@ -264,7 +260,8 @@ router.post('/update-selection', authenticate, async (req, res) => {
     res.json({
       success: true,
       game: { ...game, total_pool: newPool, total_players: newPlayerCount },
-      cartelas: allCartelas.rows
+      cartelas: allCartelas.rows,
+      takenNumbers: allTakenNumbers
     });
     
   } catch (error) {
@@ -291,8 +288,6 @@ router.get('/:gameId/taken-numbers', authenticate, async (req, res) => {
 router.post('/generate-cartela', authenticate, async (req, res) => {
   const { luckyNumber } = req.body;
   
-  console.log('Generate cartela preview for lucky number:', luckyNumber);
-  
   try {
     const result = await pool.query(
       'SELECT cartela_data FROM fixed_cartelas WHERE lucky_number = $1',
@@ -305,10 +300,8 @@ router.post('/generate-cartela', authenticate, async (req, res) => {
       if (typeof cartela === 'string') {
         cartela = JSON.parse(cartela);
       }
-      console.log('Found fixed cartela for number', luckyNumber);
     } else {
       cartela = generateCartela();
-      console.log('Using generated cartela for number', luckyNumber);
     }
     
     res.json({ luckyNumber, cartela });
@@ -364,22 +357,25 @@ router.post('/leave', authenticate, async (req, res) => {
           [newPool, newPlayerCount, game.id]
         );
         
-        const updatedPlayers = await getPlayersList(game.id);
+        const takenNumbersResult = await pool.query(
+          'SELECT lucky_number FROM player_cartelas WHERE game_id = $1',
+          [game.id]
+        );
+        const allTakenNumbers = takenNumbersResult.rows.map(r => r.lucky_number);
         
         const io = require('../server').io;
         if (io) {
-          console.log(`📢 Broadcasting game_update after leave to game_${game.id}: players=${newPlayerCount}`);
-          
+          io.to(`game_${game.id}`).emit('numbers_taken', {
+            numbers: allTakenNumbers,
+            userId: req.userId
+          });
           io.to(`game_${game.id}`).emit('game_update', { 
             gameId: game.id, 
             playerCount: newPlayerCount, 
-            pool: newPool,
-            players: updatedPlayers
+            pool: newPool
           });
           
-          // Cancel countdown if player count drops below 2
           if (newPlayerCount < 2) {
-            console.log(`❌ Cancelling countdown - only ${newPlayerCount} players left`);
             io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
           }
         }

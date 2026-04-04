@@ -232,12 +232,11 @@ useEffect(() => {
     socket.emit('join_game_room', { gameId: game.id });
   }
   
-  // Listen for countdown events
-  const unsubscribeCountdown = on('countdown', (data) => {
-    console.log('Countdown received:', data.seconds);
-    setCountdown(data.seconds);
-    setCountdownActive(true);
-  });
+// Make sure this is in your socket useEffect
+const unsubscribeCountdown = on('countdown', (data) => {
+  console.log('⏰ Countdown received:', data.seconds);
+  setCountdown(data.seconds);
+});
   
   const unsubscribeCountdownStart = on('countdown_start', (data) => {
     console.log('Countdown started:', data);
@@ -316,6 +315,26 @@ useEffect(() => {
   return () => {
     socket.off('connect', handleConnect);
     socket.off('disconnect', handleDisconnect);
+  };
+}, [socket, game?.id]);
+// Add this useEffect right after your other useEffects
+useEffect(() => {
+  if (!socket) return;
+  
+  // Listen for numbers taken events
+  const handleNumbersTaken = (data) => {
+    console.log('🔴 Numbers taken event:', data);
+    if (data.numbers && data.numbers.length > 0) {
+      setTakenNumbers(data.numbers);
+      // Also refresh game data
+      fetchData();
+    }
+  };
+  
+  socket.on('numbers_taken', handleNumbersTaken);
+  
+  return () => {
+    socket.off('numbers_taken', handleNumbersTaken);
   };
 }, [socket, game?.id]);
   if (loading) {
