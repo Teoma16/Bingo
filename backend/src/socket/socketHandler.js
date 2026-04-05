@@ -46,6 +46,17 @@ const socketHandler = (socket, io) => {
       socket.emit('error', { message: 'Authentication failed' });
     }
   });
+  
+  // Simple broadcast for when a player selects a number
+socket.on('player_selected', async (data) => {
+  const { gameId, selectedNumbers } = data;
+  console.log(`Player selected numbers in game ${gameId}:`, selectedNumbers);
+  
+  // Broadcast to everyone in the game room EXCEPT the sender
+  socket.to(`game_${gameId}`).emit('other_player_selected', {
+    selectedNumbers: selectedNumbers
+  });
+});
   // Join specific game room
 socket.on('join_game_room', (data) => {
   const { gameId } = data;

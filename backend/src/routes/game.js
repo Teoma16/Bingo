@@ -233,9 +233,8 @@ router.post('/update-selection', authenticate, async (req, res) => {
       console.log(`📢 Broadcasting to game_${game.id}: players=${newPlayerCount}, taken=${allTakenNumbers.length}`);
       
       // Broadcast taken numbers to ALL players
-      io.to(`game_${game.id}`).emit('numbers_taken', {
-        numbers: allTakenNumbers,
-        userId: req.userId
+      io.to(`game_${game.id}`).emit('taken_numbers_update', {
+        takenNumbers: allTakenNumbers
       });
       
       // Broadcast game update
@@ -243,17 +242,28 @@ router.post('/update-selection', authenticate, async (req, res) => {
         gameId: game.id, 
         playerCount: newPlayerCount, 
         pool: newPool,
-        players: updatedPlayers,
-        takenNumbers: allTakenNumbers
+        players: updatedPlayers
       });
       
       // Start countdown if 2+ players
       if (newPlayerCount >= 2 && game.status === 'waiting') {
         console.log(`✅ Starting countdown for game ${game.id}`);
-        io.to(`game_${game.id}`).emit('start_countdown', { gameId: game.id });
-      } else if (newPlayerCount < 2) {
-        console.log(`❌ Cancelling countdown - only ${newPlayerCount} players`);
-        io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
+        
+        let countdown = 40;
+        const countdownInterval = setInterval(async () => {
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            // Start the game
+            await pool.query(
+              "UPDATE games SET status = 'active', started_at = NOW() WHERE id = $1",
+              [game.id]
+            );
+            io.to(`game_${game.id}`).emit('game_starting', { gameId: game.id });
+          } else {
+            io.to(`game_${game.id}`).emit('countdown', { seconds: countdown });
+            countdown--;
+          }
+        }, 1000);
       }
     }
     
@@ -365,19 +375,14 @@ router.post('/leave', authenticate, async (req, res) => {
         
         const io = require('../server').io;
         if (io) {
-          io.to(`game_${game.id}`).emit('numbers_taken', {
-            numbers: allTakenNumbers,
-            userId: req.userId
+          io.to(`game_${game.id}`).emit('taken_numbers_update', {
+            takenNumbers: allTakenNumbers
           });
           io.to(`game_${game.id}`).emit('game_update', { 
             gameId: game.id, 
             playerCount: newPlayerCount, 
             pool: newPool
           });
-          
-          if (newPlayerCount < 2) {
-            io.to(`game_${game.id}`).emit('countdown_cancelled', { gameId: game.id });
-          }
         }
       }
     }

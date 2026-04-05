@@ -127,34 +127,41 @@ function SelectionPage() {
     await updateSelection([...selectedNumbers, number]);
   };
 
-  const updateSelection = async (numbers) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/game/update-selection`,
-        { luckyNumbers: numbers },
-        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
-      
-      setSelectedNumbers(numbers);
-      fetchData();
-      fetchBalance();
-      
-      // Update preview cartelas
-      const newPreviews = [];
-      for (const number of numbers) {
-        const preview = await fetchCartelaPreview(number);
-        if (preview) newPreviews.push(preview);
-      }
-      setPreviewCartelas(newPreviews);
-      
-      // The backend will broadcast numbers_taken to all players
-      
-    } catch (error) {
-      console.error('Update error:', error);
-      alert(error.response?.data?.error || 'Update failed');
+ const updateSelection = async (numbers) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.post(
+      `${API_URL}/game/update-selection`,
+      { luckyNumbers: numbers },
+      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    );
+    
+    setSelectedNumbers(numbers);
+    
+    // Emit to other players that you selected numbers
+    if (socket && game?.id) {
+      socket.emit('player_selected', {
+        gameId: game.id,
+        selectedNumbers: numbers
+      });
     }
-  };
+    
+    fetchData();
+    fetchBalance();
+    
+    // Update preview
+    const newPreviews = [];
+    for (const number of numbers) {
+      const preview = await fetchCartelaPreview(number);
+      if (preview) newPreviews.push(preview);
+    }
+    setPreviewCartelas(newPreviews);
+    
+  } catch (error) {
+    console.error('Update error:', error);
+    alert(error.response?.data?.error || 'Update failed');
+  }
+};
 
   const calculateReward = () => {
     if (!pool || pool <= 0) return '0.00';
@@ -175,61 +182,38 @@ function SelectionPage() {
   }, []);
 
   // Socket events - SIMPLIFIED
-  useEffect(() => {
-    if (!socket) return;
-    
-    // Join game room
-    if (game?.id) {
-      console.log('Joining game room:', game.id);
-      socket.emit('join_game_room', { gameId: game.id });
-    }
-    
-    // Listen for numbers taken from backend
-    const handleNumbersTaken = (data) => {
-      console.log('Numbers taken event:', data);
-      if (data.numbers) {
-        setTakenNumbers(data.numbers);
-      }
-    };
-    
-    // Listen for countdown
-    const handleCountdown = (data) => {
-      console.log('Countdown:', data.seconds);
-      setCountdown(data.seconds);
-    };
-    
-    // Listen for countdown cancelled
-    const handleCountdownCancelled = () => {
-      console.log('Countdown cancelled');
-      setCountdown(null);
-    };
-    
-    // Listen for game start
-    const handleGameStart = () => {
-      console.log('Game starting!');
-      navigate('/gameplay');
-    };
-    
-    // Listen for game update
-    const handleGameUpdate = () => {
-      fetchData();
-      fetchTakenNumbers();
-    };
-    
-    socket.on('numbers_taken', handleNumbersTaken);
-    socket.on('countdown', handleCountdown);
-    socket.on('countdown_cancelled', handleCountdownCancelled);
-    socket.on('game_starting', handleGameStart);
-    socket.on('game_update', handleGameUpdate);
-    
-    return () => {
-      socket.off('numbers_taken', handleNumbersTaken);
-      socket.off('countdown', handleCountdown);
-      socket.off('countdown_cancelled', handleCountdownCancelled);
-      socket.off('game_starting', handleGameStart);
-      socket.off('game_update', handleGameUpdate);
-    };
-  }, [socket, game?.id]);
+ // Socket events - SIMPLE VERSION
+useEffect(() => {
+  if (!socket) return;
+  
+  // Join the game room
+  if (game?.id) {
+    socket.emit('join_game_room', { gameId: game.id });
+  }
+  
+  // Listen for taken numbers updates
+  socket.on('taken_numbers_update', (data) => {
+    console.log('Taken numbers update:', data);
+    setTakenNumbers(data.takenNumbers);
+  });
+  
+  // Listen for countdown
+  socket.on('countdown', (data) => {
+    console.log('Countdown:', data.seconds);
+    setCountdown(data.seconds);
+  });
+  
+  // Listen for game start
+  socket.on('game_starting', () => {
+    navigate('/gameplay');
+  });
+  
+  return () => {
+    socket.off('taken_numbers_update');
+    socket.off('countdown');
+    socket.off('game_starting');
+  };
+}, [socket, game?.id]);
 
   if (loading) {
     return (
