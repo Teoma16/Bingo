@@ -803,9 +803,17 @@
   font-size: 0.7rem;
   color: #10b981;
 }
-/*
+
 @media (max-width: 768px) {
-  .selection-page {
+ 
+  
+  .numbers-grid {
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+   max-width: 200px;
+  }
+  /*
+   .selection-page {
     padding-bottom: 70px;
   }
   
@@ -814,13 +822,6 @@
     padding: 15px;
     max-height: calc(100vh - 180px);
   }
-  
- /* .numbers-grid {
-    grid-template-columns: repeat(10, 1fr);
-    gap: 5px;
-   max-height: 500px;
-  }
-  
   .cartelas-preview-section {
     max-height: 350px;
   }
