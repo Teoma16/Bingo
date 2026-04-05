@@ -10,7 +10,7 @@ import './SelectionPage.css';
 
 function SelectionPage() {
   const { user, updateBalance } = useAuth();
-  const { socket, isConnected, on, off } = useSocket();
+  const { socket, isConnected } = useSocket();
   const navigate = useNavigate();
   
   const [selectedNumbers, setSelectedNumbers] = useState([]);
@@ -38,6 +38,7 @@ function SelectionPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      console.log('Fetch data response:', response.data);
       setGame(response.data.game);
       setPlayers(response.data.players || []);
       setPool(response.data.game?.total_pool || 0);
@@ -46,7 +47,9 @@ function SelectionPage() {
         setSelectedNumbers(response.data.cartelas.map(c => c.lucky_number));
       }
       
+      // Only navigate to gameplay if game is ACTIVE
       if (response.data.game?.status === 'active') {
+        console.log('Game is active, navigating to gameplay');
         navigate('/gameplay');
       }
     } catch (error) {
@@ -63,7 +66,6 @@ function SelectionPage() {
       const response = await axios.get(`${API_URL}/game/${game.id}/taken-numbers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('Fetched taken numbers:', response.data.takenNumbers);
       setTakenNumbers(response.data.takenNumbers || []);
     } catch (error) {
       console.error('Error fetching taken numbers:', error);
@@ -105,26 +107,31 @@ function SelectionPage() {
   };
 
   const handleNumberClick = async (number) => {
+    // Don't allow selection during countdown
     if (countdown !== null && countdown > 0) {
       alert('Game starting soon! Cannot change selection.');
       return;
     }
     
+    // Check if number is taken by another player
     if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
       alert(`Number ${number} is already taken by another player!`);
       return;
     }
     
+    // Deselect if already selected
     if (selectedNumbers.includes(number)) {
       await updateSelection(selectedNumbers.filter(n => n !== number));
       return;
     }
     
+    // Max 2 cartelas
     if (selectedNumbers.length >= 2) {
       alert('Maximum 2 cartelas per player!');
       return;
     }
     
+    // Select the number
     await updateSelection([...selectedNumbers, number]);
   };
 
@@ -148,8 +155,8 @@ function SelectionPage() {
       setPreviewCartelas(newPreviews);
       
       // Refresh data
-      fetchData();
-      fetchBalance();
+      await fetchData();
+      await fetchBalance();
       
     } catch (error) {
       console.error('Update error:', error);
@@ -168,33 +175,27 @@ function SelectionPage() {
     fetchBalance();
   }, []);
 
-  // Poll for taken numbers every 2 seconds
+  // Poll for taken numbers and game state every 2 seconds
   useEffect(() => {
     if (!game?.id) return;
     
     const interval = setInterval(() => {
       fetchTakenNumbers();
+      fetchData();
     }, 2000);
     
     return () => clearInterval(interval);
   }, [game?.id]);
 
-  // Socket events for real-time updates
+  // Socket events
   useEffect(() => {
     if (!socket) return;
     
-    // Join the game room
+    // Join game room
     if (game?.id) {
+      console.log('Joining game room:', game.id);
       socket.emit('join_game_room', { gameId: game.id });
     }
-    
-    // Listen for taken numbers updates from backend
-    const handleTakenNumbersUpdate = (data) => {
-      console.log('Taken numbers update from socket:', data);
-      if (data.takenNumbers) {
-        setTakenNumbers(data.takenNumbers);
-      }
-    };
     
     // Listen for countdown
     const handleCountdown = (data) => {
@@ -208,14 +209,22 @@ function SelectionPage() {
       navigate('/gameplay');
     };
     
-    socket.on('taken_numbers_update', handleTakenNumbersUpdate);
+    // Listen for taken numbers updates
+    const handleTakenNumbersUpdate = (data) => {
+      console.log('Taken numbers update:', data);
+      if (data.takenNumbers) {
+        setTakenNumbers(data.takenNumbers);
+      }
+    };
+    
     socket.on('countdown', handleCountdown);
     socket.on('game_starting', handleGameStart);
+    socket.on('taken_numbers_update', handleTakenNumbersUpdate);
     
     return () => {
-      socket.off('taken_numbers_update', handleTakenNumbersUpdate);
       socket.off('countdown', handleCountdown);
       socket.off('game_starting', handleGameStart);
+      socket.off('taken_numbers_update', handleTakenNumbersUpdate);
     };
   }, [socket, game?.id]);
 
