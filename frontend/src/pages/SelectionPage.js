@@ -219,10 +219,7 @@ useEffect(() => {
   socket.emit('join_game_room', { gameId: game.id });
   
 }, [socket, game?.id]);
-  // Socket events
-// Update socket events
-// Socket events
-// Socket events
+// Socket events - SIMPLIFIED VERSION
 useEffect(() => {
   if (!socket) return;
   
@@ -232,63 +229,47 @@ useEffect(() => {
     socket.emit('join_game_room', { gameId: game.id });
   }
   
-// Make sure this is in your socket useEffect
-const unsubscribeCountdown = on('countdown', (data) => {
-  console.log('⏰ Countdown received:', data.seconds);
-  setCountdown(data.seconds);
-});
-  
-  const unsubscribeCountdownStart = on('countdown_start', (data) => {
-    console.log('Countdown started:', data);
+  // Listen for countdown
+  const unsubscribeCountdown = on('countdown', (data) => {
+    console.log('⏰ Countdown received:', data.seconds);
     setCountdown(data.seconds);
     setCountdownActive(true);
   });
   
-  const unsubscribeCountdownCancelled = on('countdown_cancelled', (data) => {
-    console.log('Countdown cancelled:', data);
+  // Listen for countdown cancelled
+  const unsubscribeCountdownCancelled = on('countdown_cancelled', () => {
+    console.log('Countdown cancelled');
     setCountdown(null);
     setCountdownActive(false);
   });
   
   // Listen for game start
   const unsubscribeGameStart = on('game_starting', () => {
-    console.log('Game starting, navigating to gameplay');
+    console.log('Game starting!');
     navigate('/gameplay');
   });
   
-  // Listen for game updates
-  const unsubscribeGameUpdate = on('game_update', (data) => {
-    console.log('Game update received:', data);
-    fetchData();
-    fetchTakenNumbers();
-  });
-  
-  // Listen for numbers taken by other players - THIS IS KEY
+  // Listen for numbers taken - THIS IS CRITICAL for real-time updates
   const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
-    console.log('Numbers taken event received:', data);
-    // Immediately update taken numbers
-    setTakenNumbers(prev => {
-      const newTaken = [...new Set([...prev, ...data.numbers])];
-      return newTaken;
-    });
-    fetchData();
+    console.log('🔴 Numbers taken event:', data);
+    if (data.numbers) {
+      setTakenNumbers(data.numbers);
+      fetchData(); // Refresh game data
+    }
   });
   
-  // Listen for player update
-  const unsubscribePlayerUpdate = on('player_update', (data) => {
-    console.log('Player update received:', data);
+  // Listen for game updates
+  const unsubscribeGameUpdate = on('game_update', () => {
     fetchData();
     fetchTakenNumbers();
   });
   
   return () => {
     unsubscribeCountdown();
-    unsubscribeCountdownStart();
     unsubscribeCountdownCancelled();
     unsubscribeGameStart();
-    unsubscribeGameUpdate();
     unsubscribeNumbersTaken();
-    unsubscribePlayerUpdate();
+    unsubscribeGameUpdate();
   };
 }, [socket, game?.id]);
 // Add this useEffect to monitor socket connection
@@ -359,7 +340,7 @@ useEffect(() => {
 
       {/* Status Bar */}
 <div className="selection-status">
-  {countdown !== null && countdown > 0 ? (
+  {countdownActive && countdown !== null && countdown > 0 ? (
     <div className="countdown-display">
       <span className="countdown-label">⏰ Game starts in:</span>
       <span className="countdown-number">{countdown}s</span>
@@ -384,7 +365,8 @@ useEffect(() => {
             const isSelected = selectedNumbers.includes(number);
             const isTaken = takenNumbers.includes(number) && !isSelected;
             return (
-             <button
+             
+			 <button
   key={number}
   className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
   onClick={() => handleNumberClick(number)}
@@ -392,6 +374,7 @@ useEffect(() => {
 >
   {number}
 </button>
+			 
             );
           })}
         </div>
