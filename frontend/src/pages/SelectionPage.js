@@ -10,7 +10,7 @@ import './SelectionPage.css';
 
 function SelectionPage() {
   const { user, updateBalance } = useAuth();
-  const { socket, isConnected, on, emit } = useSocket();
+  const { socket, isConnected, on, off } = useSocket();
   const navigate = useNavigate();
   
   const [selectedNumbers, setSelectedNumbers] = useState([]);
@@ -63,9 +63,10 @@ function SelectionPage() {
       const response = await axios.get(`${API_URL}/game/${game.id}/taken-numbers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('Fetched taken numbers:', response.data.takenNumbers);
       setTakenNumbers(response.data.takenNumbers || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching taken numbers:', error);
     }
   };
 
@@ -110,7 +111,7 @@ function SelectionPage() {
     }
     
     if (takenNumbers.includes(number) && !selectedNumbers.includes(number)) {
-      alert(`Number ${number} is already taken!`);
+      alert(`Number ${number} is already taken by another player!`);
       return;
     }
     
@@ -127,41 +128,34 @@ function SelectionPage() {
     await updateSelection([...selectedNumbers, number]);
   };
 
- const updateSelection = async (numbers) => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.post(
-      `${API_URL}/game/update-selection`,
-      { luckyNumbers: numbers },
-      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    );
-    
-    setSelectedNumbers(numbers);
-    
-    // Emit to other players that you selected numbers
-    if (socket && game?.id) {
-      socket.emit('player_selected', {
-        gameId: game.id,
-        selectedNumbers: numbers
-      });
+  const updateSelection = async (numbers) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/game/update-selection`,
+        { luckyNumbers: numbers },
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setSelectedNumbers(numbers);
+      
+      // Update preview cartelas
+      const newPreviews = [];
+      for (const number of numbers) {
+        const preview = await fetchCartelaPreview(number);
+        if (preview) newPreviews.push(preview);
+      }
+      setPreviewCartelas(newPreviews);
+      
+      // Refresh data
+      fetchData();
+      fetchBalance();
+      
+    } catch (error) {
+      console.error('Update error:', error);
+      alert(error.response?.data?.error || 'Update failed');
     }
-    
-    fetchData();
-    fetchBalance();
-    
-    // Update preview
-    const newPreviews = [];
-    for (const number of numbers) {
-      const preview = await fetchCartelaPreview(number);
-      if (preview) newPreviews.push(preview);
-    }
-    setPreviewCartelas(newPreviews);
-    
-  } catch (error) {
-    console.error('Update error:', error);
-    alert(error.response?.data?.error || 'Update failed');
-  }
-};
+  };
 
   const calculateReward = () => {
     if (!pool || pool <= 0) return '0.00';
@@ -172,48 +166,58 @@ function SelectionPage() {
   useEffect(() => {
     fetchData();
     fetchBalance();
-    
-    const interval = setInterval(() => {
-      if (game?.id) fetchTakenNumbers();
-      fetchData();
-    }, 3000);
-    
-    return () => clearInterval(interval);
   }, []);
 
-  // Socket events - SIMPLIFIED
- // Socket events - SIMPLE VERSION
-useEffect(() => {
-  if (!socket) return;
-  
-  // Join the game room
-  if (game?.id) {
-    socket.emit('join_game_room', { gameId: game.id });
-  }
-  
-  // Listen for taken numbers updates
-  socket.on('taken_numbers_update', (data) => {
-    console.log('Taken numbers update:', data);
-    setTakenNumbers(data.takenNumbers);
-  });
-  
-  // Listen for countdown
-  socket.on('countdown', (data) => {
-    console.log('Countdown:', data.seconds);
-    setCountdown(data.seconds);
-  });
-  
-  // Listen for game start
-  socket.on('game_starting', () => {
-    navigate('/gameplay');
-  });
-  
-  return () => {
-    socket.off('taken_numbers_update');
-    socket.off('countdown');
-    socket.off('game_starting');
-  };
-}, [socket, game?.id]);
+  // Poll for taken numbers every 2 seconds
+  useEffect(() => {
+    if (!game?.id) return;
+    
+    const interval = setInterval(() => {
+      fetchTakenNumbers();
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, [game?.id]);
+
+  // Socket events for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Join the game room
+    if (game?.id) {
+      socket.emit('join_game_room', { gameId: game.id });
+    }
+    
+    // Listen for taken numbers updates from backend
+    const handleTakenNumbersUpdate = (data) => {
+      console.log('Taken numbers update from socket:', data);
+      if (data.takenNumbers) {
+        setTakenNumbers(data.takenNumbers);
+      }
+    };
+    
+    // Listen for countdown
+    const handleCountdown = (data) => {
+      console.log('Countdown received:', data.seconds);
+      setCountdown(data.seconds);
+    };
+    
+    // Listen for game start
+    const handleGameStart = () => {
+      console.log('Game starting!');
+      navigate('/gameplay');
+    };
+    
+    socket.on('taken_numbers_update', handleTakenNumbersUpdate);
+    socket.on('countdown', handleCountdown);
+    socket.on('game_starting', handleGameStart);
+    
+    return () => {
+      socket.off('taken_numbers_update', handleTakenNumbersUpdate);
+      socket.off('countdown', handleCountdown);
+      socket.off('game_starting', handleGameStart);
+    };
+  }, [socket, game?.id]);
 
   if (loading) {
     return (
