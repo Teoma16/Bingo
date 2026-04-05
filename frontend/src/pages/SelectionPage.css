@@ -193,8 +193,8 @@
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 2px;
-  /*max-height: 550px;
-  overflow-y: auto;*/
+  max-width: 300px;
+  overflow-y: auto;
   padding: 5px;
 }
 
@@ -804,7 +804,7 @@
   color: #10b981;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 430px) {
  
   
   .numbers-grid {
