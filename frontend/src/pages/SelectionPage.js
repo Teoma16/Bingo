@@ -20,18 +20,16 @@ function SelectionPage() {
   const [countdown, setCountdown] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [previewCartelas, setPreviewCartelas] = useState([]); // Array of cartelas for preview
+  const [previewCartelas, setPreviewCartelas] = useState([]);
   const [balance, setBalance] = useState(user?.wallet_balance || 0);
   const [transactions, setTransactions] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [countdownActive, setCountdownActive] = useState(false);
   
   const API_URL = '/api';
   const ENTRY_FEE = 10;
   const WINNER_PERCENTAGE = 78.75;
-
 
   const fetchData = async () => {
     try {
@@ -85,42 +83,28 @@ function SelectionPage() {
     }
   };
 
-  // In SelectionPage.js, update the fetchCartelaPreview function
-const fetchCartelaPreview = async (number) => {
-  try {
-    const token = localStorage.getItem('token');
-    // Use the generate-cartela endpoint which fetches from fixed_cartelas table
-    const response = await fetch(`${API_URL}/game/generate-cartela`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ luckyNumber: number })
-    });
-    const data = await response.json();
-    // The cartela should be from fixed_cartelas table
-    const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
-    return { number, cartela };
-  } catch (error) {
-    console.error('Preview error:', error);
-    return null;
-  }
-};
+  const fetchCartelaPreview = async (number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/game/generate-cartela`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ luckyNumber: number })
+      });
+      const data = await response.json();
+      const cartela = typeof data.cartela === 'string' ? JSON.parse(data.cartela) : data.cartela;
+      return { number, cartela };
+    } catch (error) {
+      console.error('Preview error:', error);
+      return null;
+    }
+  };
 
-  // Handle number click - toggle selection immediately
   const handleNumberClick = async (number) => {
-    
-	  if (countdownActive) {
-    alert('Game is about to start! Cannot change selection.');
-    return;
-  }
-  
-  if (countdown !== null && countdown > 0) {
-    alert('Game starting soon! Cannot change selection.');
-    return;
-  }
-	if (countdown !== null && countdown > 0) {
+    if (countdown !== null && countdown > 0) {
       alert('Game starting soon! Cannot change selection.');
       return;
     }
@@ -131,7 +115,6 @@ const fetchCartelaPreview = async (number) => {
     }
     
     if (selectedNumbers.includes(number)) {
-      // Deselect - remove the number
       await updateSelection(selectedNumbers.filter(n => n !== number));
       return;
     }
@@ -141,49 +124,36 @@ const fetchCartelaPreview = async (number) => {
       return;
     }
     
-    // Auto-select the number
     await updateSelection([...selectedNumbers, number]);
   };
 
- const updateSelection = async (numbers) => {
-  try {
-    const token = localStorage.getItem('token');
-    await axios.post(
-      `${API_URL}/game/update-selection`,
-      { luckyNumbers: numbers },
-      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    );
-    setSelectedNumbers(numbers);
-    fetchData();
-    fetchBalance();
-    
-    // Update preview cartelas based on selected numbers
-    await updatePreviewCartelas(numbers);
-    
-    // Emit selection change to other players
-    if (socket && game?.id) {
-      socket.emit('player_selection_changed', {
-        gameId: game.id,
-        userId: user?.id,
-        selectedNumbers: numbers
-      });
-    }
-  } catch (error) {
-    console.error('Update error:', error);
-    alert(error.response?.data?.error || 'Update failed');
-  }
-};
-
-  // Update preview cartelas whenever selected numbers change
-  const updatePreviewCartelas = async (numbers) => {
-    const newPreviews = [];
-    for (const number of numbers) {
-      const preview = await fetchCartelaPreview(number);
-      if (preview) {
-        newPreviews.push(preview);
+  const updateSelection = async (numbers) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/game/update-selection`,
+        { luckyNumbers: numbers },
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setSelectedNumbers(numbers);
+      fetchData();
+      fetchBalance();
+      
+      // Update preview cartelas
+      const newPreviews = [];
+      for (const number of numbers) {
+        const preview = await fetchCartelaPreview(number);
+        if (preview) newPreviews.push(preview);
       }
+      setPreviewCartelas(newPreviews);
+      
+      // The backend will broadcast numbers_taken to all players
+      
+    } catch (error) {
+      console.error('Update error:', error);
+      alert(error.response?.data?.error || 'Update failed');
     }
-    setPreviewCartelas(newPreviews);
   };
 
   const calculateReward = () => {
@@ -191,6 +161,7 @@ const fetchCartelaPreview = async (number) => {
     return ((pool * WINNER_PERCENTAGE) / 100).toFixed(2);
   };
 
+  // Initial data fetch
   useEffect(() => {
     fetchData();
     fetchBalance();
@@ -203,121 +174,63 @@ const fetchCartelaPreview = async (number) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Load previews when selectedNumbers changes
+  // Socket events - SIMPLIFIED
   useEffect(() => {
-    if (selectedNumbers.length > 0) {
-      updatePreviewCartelas(selectedNumbers);
-    } else {
-      setPreviewCartelas([]);
-    }
-  }, [selectedNumbers]);
-// Add this useEffect to join the game room
-useEffect(() => {
-  if (!socket || !game?.id) return;
-  
-  // Join the game room for real-time updates
-  socket.emit('join_game_room', { gameId: game.id });
-  
-}, [socket, game?.id]);
-// Socket events - SIMPLIFIED VERSION
-useEffect(() => {
-  if (!socket) return;
-  
-  // Join the game room
-  if (game?.id) {
-    console.log('Joining game room:', game.id);
-    socket.emit('join_game_room', { gameId: game.id });
-  }
-  
-  // Listen for countdown
-  const unsubscribeCountdown = on('countdown', (data) => {
-    console.log('⏰ Countdown received:', data.seconds);
-    setCountdown(data.seconds);
-    setCountdownActive(true);
-  });
-  
-  // Listen for countdown cancelled
-  const unsubscribeCountdownCancelled = on('countdown_cancelled', () => {
-    console.log('Countdown cancelled');
-    setCountdown(null);
-    setCountdownActive(false);
-  });
-  
-  // Listen for game start
-  const unsubscribeGameStart = on('game_starting', () => {
-    console.log('Game starting!');
-    navigate('/gameplay');
-  });
-  
-  // Listen for numbers taken - THIS IS CRITICAL for real-time updates
-  const unsubscribeNumbersTaken = on('numbers_taken', (data) => {
-    console.log('🔴 Numbers taken event:', data);
-    if (data.numbers) {
-      setTakenNumbers(data.numbers);
-      fetchData(); // Refresh game data
-    }
-  });
-  
-  // Listen for game updates
-  const unsubscribeGameUpdate = on('game_update', () => {
-    fetchData();
-    fetchTakenNumbers();
-  });
-  
-  return () => {
-    unsubscribeCountdown();
-    unsubscribeCountdownCancelled();
-    unsubscribeGameStart();
-    unsubscribeNumbersTaken();
-    unsubscribeGameUpdate();
-  };
-}, [socket, game?.id]);
-// Add this useEffect to monitor socket connection
-useEffect(() => {
-  if (!socket) return;
-  
-  const handleConnect = () => {
-    console.log('Socket connected');
-    // Re-join game room on reconnect
+    if (!socket) return;
+    
+    // Join game room
     if (game?.id) {
+      console.log('Joining game room:', game.id);
       socket.emit('join_game_room', { gameId: game.id });
+    }
+    
+    // Listen for numbers taken from backend
+    const handleNumbersTaken = (data) => {
+      console.log('Numbers taken event:', data);
+      if (data.numbers) {
+        setTakenNumbers(data.numbers);
+      }
+    };
+    
+    // Listen for countdown
+    const handleCountdown = (data) => {
+      console.log('Countdown:', data.seconds);
+      setCountdown(data.seconds);
+    };
+    
+    // Listen for countdown cancelled
+    const handleCountdownCancelled = () => {
+      console.log('Countdown cancelled');
+      setCountdown(null);
+    };
+    
+    // Listen for game start
+    const handleGameStart = () => {
+      console.log('Game starting!');
+      navigate('/gameplay');
+    };
+    
+    // Listen for game update
+    const handleGameUpdate = () => {
       fetchData();
       fetchTakenNumbers();
-    }
-  };
-  
-  const handleDisconnect = () => {
-    console.log('Socket disconnected');
-  };
-  
-  socket.on('connect', handleConnect);
-  socket.on('disconnect', handleDisconnect);
-  
-  return () => {
-    socket.off('connect', handleConnect);
-    socket.off('disconnect', handleDisconnect);
-  };
-}, [socket, game?.id]);
-// Add this useEffect right after your other useEffects
-useEffect(() => {
-  if (!socket) return;
-  
-  // Listen for numbers taken events
-  const handleNumbersTaken = (data) => {
-    console.log('🔴 Numbers taken event:', data);
-    if (data.numbers && data.numbers.length > 0) {
-      setTakenNumbers(data.numbers);
-      // Also refresh game data
-      fetchData();
-    }
-  };
-  
-  socket.on('numbers_taken', handleNumbersTaken);
-  
-  return () => {
-    socket.off('numbers_taken', handleNumbersTaken);
-  };
-}, [socket, game?.id]);
+    };
+    
+    socket.on('numbers_taken', handleNumbersTaken);
+    socket.on('countdown', handleCountdown);
+    socket.on('countdown_cancelled', handleCountdownCancelled);
+    socket.on('game_starting', handleGameStart);
+    socket.on('game_update', handleGameUpdate);
+    
+    return () => {
+      socket.off('numbers_taken', handleNumbersTaken);
+      socket.off('countdown', handleCountdown);
+      socket.off('countdown_cancelled', handleCountdownCancelled);
+      socket.off('game_starting', handleGameStart);
+      socket.off('game_update', handleGameUpdate);
+    };
+  }, [socket, game?.id]);
+
   if (loading) {
     return (
       <div className="selection-loading">
@@ -329,7 +242,6 @@ useEffect(() => {
 
   return (
     <div className="selection-page">
-      {/* Header */}
       <header className="selection-header">
         <h1>BINGO</h1>
         <div className="header-right">
@@ -338,22 +250,20 @@ useEffect(() => {
         </div>
       </header>
 
-      {/* Status Bar */}
-<div className="selection-status">
-  {countdownActive && countdown !== null && countdown > 0 ? (
-    <div className="countdown-display">
-      <span className="countdown-label">⏰ Game starts in:</span>
-      <span className="countdown-number">{countdown}s</span>
-    </div>
-  ) : (
-    <div className="waiting-display">
-      <span>⏳ Waiting for players... ({players.length}/2 players)</span>
-    </div>
-  )}
-  <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
-</div>
+      <div className="selection-status">
+        {countdown !== null && countdown > 0 ? (
+          <div className="countdown-display">
+            <span className="countdown-label">⏰ Game starts in:</span>
+            <span className="countdown-number">{countdown}s</span>
+          </div>
+        ) : (
+          <div className="waiting-display">
+            <span>⏳ Waiting for players... ({players.length}/2 players)</span>
+          </div>
+        )}
+        <div className="reward-display">🏆 Winner gets: {calculateReward()} Birr</div>
+      </div>
 
-      {/* Selection Area */}
       <div className="selection-area">
         <div className="selection-info">
           <h3>Select Your Lucky Numbers (1-2)</h3>
@@ -365,31 +275,27 @@ useEffect(() => {
             const isSelected = selectedNumbers.includes(number);
             const isTaken = takenNumbers.includes(number) && !isSelected;
             return (
-             
-			 <button
-  key={number}
-  className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
-  onClick={() => handleNumberClick(number)}
-  disabled={isTaken || countdownActive}
->
-  {number}
-</button>
-			 
+              <button
+                key={number}
+                className={`number-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}`}
+                onClick={() => handleNumberClick(number)}
+                disabled={isTaken}
+              >
+                {number}
+              </button>
             );
           })}
         </div>
 
-        {/* Cartela Preview Section - Shows ALL selected cartelas side by side */}
         {previewCartelas.length > 0 && (
           <div className="cartelas-preview-section">
             <h3>Your Cartelas</h3>
             <div className="cartelas-preview-container">
-              {previewCartelas.map((preview, index) => (
+              {previewCartelas.map((preview) => (
                 <div key={preview.number} className="cartela-preview-card">
                   <div className="preview-number">Lucky #{preview.number}</div>
-				    
                   <div className="preview-card-content">
-				   <div className="preview-header-row">B I N G O</div>
+                    <div className="preview-header-row">B I N G O</div>
                     {[0, 1, 2, 3, 4].map(row => (
                       <div key={row} className="preview-row">
                         {[0, 1, 2, 3, 4].map(col => {
@@ -403,23 +309,16 @@ useEffect(() => {
                       </div>
                     ))}
                   </div>
-				  {/* <button 
-                    className="remove-cartela-btn"
-                    onClick={() => handleNumberClick(preview.number)}
-                  >
-                    Remove
-                  </button>*/}
                 </div>
               ))}
             </div>
             <div className="preview-note">
-              የመረጡትን ካርቴላ መተው ከፈለጉ የመረጡት ቁጠር ላይ ደግመው ይጫኑ
+              Click selected number again to remove
             </div>
           </div>
         )}
       </div>
 
-     
       <nav className="bottom-nav">
         <div className="nav-item" onClick={() => setShowDepositModal(true)}>
           <span className="nav-icon">💰</span>
@@ -439,7 +338,6 @@ useEffect(() => {
         </div>
       </nav>
 
-      {/* History Panel */}
       {showHistory && (
         <div className="history-panel" onClick={() => setShowHistory(false)}>
           <div className="history-content" onClick={e => e.stopPropagation()}>
@@ -464,7 +362,6 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Modals */}
       <DepositModal isOpen={showDepositModal} onClose={() => setShowDepositModal(false)} onSuccess={() => { fetchBalance(); }} />
       <WithdrawalModal isOpen={showWithdrawalModal} onClose={() => setShowWithdrawalModal(false)} balance={balance} onSuccess={() => { fetchBalance(); }} />
     </div>
